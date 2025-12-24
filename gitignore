@@ -1,0 +1,25 @@
+/mock.json
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
+pip-selfcheck.json
+
+.idea/
+**/*.iml
+/wait.txt
+/result.srt
+/audio.mp3
+
+models/
+.env
+dataset/
+row_data/
