@@ -1,0 +1,29 @@
+name: asr_env
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch>=2.5.1
+  - torchaudio>=2.5.1
+  - transformers>=4.48.0
+  - datasets>=2.17.0
+  - accelerate>=0.27.0
+  - numpy>=2.0.2
+  - tqdm>=4.66.2
+  - ffmpeg=6.1.1
+  - av
+  - jiwer>=3.0.0
+  - psycopg2
+  - pip
+  - pip:
+    - kenlm
+    - pyannote.audio>=3.0.0
+    - torchcodec
+    - pysrt==1.1.2
+    - pydub==0.25.1
+    - python-dotenv
+    - evaluate
+    - pyctcdecode
+    - soundfile>=0.12.1
