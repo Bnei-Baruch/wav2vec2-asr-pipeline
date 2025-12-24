@@ -1,14 +1,15 @@
 import os
 import csv
 from os.path import isfile, join, exists
+import time
 import urllib.request
 import pysrt
 from pydub import AudioSegment
 from tqdm import tqdm
 import argparse
 
-ROW_DATA_DIR = "../row_data"
-DATASET_DIR = "../dataset"
+ROW_DATA_DIR = "./row_data"
+DATASET_DIR = "./dataset"
 
 
 def prepare_dataset(audio_path, srt_path, output_dir):
@@ -99,4 +100,5 @@ if __name__ == "__main__":
     dirs = [d for d in os.listdir(ROW_DATA_DIR) if os.path.isdir(os.path.join(ROW_DATA_DIR,d))]
     for dir in dirs:
         print(f"Preparing dataset for {dir}")
+        time.sleep(30)
         prepare_dataset_by_uid(dir)
