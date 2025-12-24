@@ -93,7 +93,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert Audio+SRT to HuggingFace AudioFolder dataset"
     )
-    parser.add_argument("--uid", required=True, help="Content unit uid")
+    parser.add_argument("--uid", required=False, help="Content unit uid")
     args = parser.parse_args()
     # prepare_dataset_by_uid(args.uid)
     dirs = [d for d in os.listdir(ROW_DATA_DIR) if os.path.isdir(os.path.join(ROW_DATA_DIR,d))]
