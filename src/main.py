@@ -2,12 +2,17 @@ import argparse
 import os
 import torch
 import torchaudio
-from transformers import Wav2Vec2Processor, Wav2Vec2ProcessorWithLM, pipeline
+from transformers import (
+    Wav2Vec2Processor,
+    Wav2Vec2ProcessorWithLM,
+    Wav2Vec2ForCTC,
+    pipeline,
+)
 from pyctcdecode import build_ctcdecoder
-import kenlm
 
 MODEL_NAME = "facebook/wav2vec2-base-960h"
-KENLM_MODEL_PATH = "../kenlm/model.arpa"
+KENLM_MODEL_PATH = "./kenlm.arpa"
+
 
 def main(audio_path):
     print(f"Running pipeline with model {MODEL_NAME}")
@@ -16,43 +21,45 @@ def main(audio_path):
 
 
 def run_pipeline(audio_path):
-    pipe = pipeline(
-        "automatic-speech-recognition",
-        model=MODEL_NAME,
-        tokenizer=MODEL_NAME,
-        device=0 if torch.cuda.is_available() else -1,
-    )
-
     processor = Wav2Vec2Processor.from_pretrained(MODEL_NAME)
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
 
-    # 2. Подготовка словаря (нужен список токенов, отсортированный по ID)
     vocab_dict = processor.tokenizer.get_vocab()
     sorted_vocab_dict = sorted((v, k) for k, v in vocab_dict.items())
     vocab = [k for _, k in sorted_vocab_dict]
 
-    # 3. Создание декодера (укажите путь к вашему .arpa или .bin файлу)
     decoder = build_ctcdecoder(
         labels=vocab,
         kenlm_model_path=KENLM_MODEL_PATH,
     )
 
-    # 4. Сборка Wav2Vec2ProcessorWithLM
     processor_with_lm = Wav2Vec2ProcessorWithLM(
         feature_extractor=processor.feature_extractor,
         tokenizer=processor.tokenizer,
         decoder=decoder,
     )
+    #speech, rate = torchaudio.load(audio_path)
+    #if rate != 16000:
+    #    resampler = torchaudio.transforms.Resample(rate, 16000)
+    #    speech = resampler(speech)
+    #speech = speech.squeeze().numpy()
+    #inputs = processor_with_lm(speech, sampling_rate=16000, return_tensors="pt")
+    #with torch.no_grad():
+    #    logits = model(inputs.input_values).logits
+    #result = processor_with_lm.batch_decode(logits.numpy())
 
-    # 5. Использование в пайплайне
     asr_pipeline = pipeline(
         "automatic-speech-recognition",
         model=MODEL_NAME,
-        tokenizer=processor_with_lm,  # Передаем процессор с LM как токенизатор
+        feature_extractor=processor_with_lm.feature_extractor,
+        tokenizer=processor_with_lm.tokenizer,
+        decoder=decoder,
+        device=0 if torch.cuda.is_available() else -1,
     )
 
-    # Результат
     result = asr_pipeline(audio_path, return_timestamps="word", batch_size=16)
-    print(f"Result: {result}")
+
+    print(f"\n\n\nResult text: \n{result}\n\n\n")
     return result
 
 
@@ -77,22 +84,11 @@ def make_srt(result):
         f.write(srt_content)
 
 
-def check_environment():
-    print(f"Torch version: {torch.__version__}")
-    print(f"Torchaudio version: {torchaudio.__version__}")
-    try:
-        print("Transformers: Wav2Vec2 available")
-        model = kenlm.Model
-        print("KenLM: available")
-        print("Pyannote.audio: available")
-    except ImportError as e:
-        print(f"Missing dependency: {e}")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ASR")
-    parser.add_argument("--audio_path", type=str, required=True)
+    parser.add_argument("--audio_path", type=str, required=False)
     args = parser.parse_args()
+    print(f"Args: {args}")
     audio_path = args.audio_path
     if not audio_path or not os.path.exists(audio_path):
         audio_path = "audio.mp3"

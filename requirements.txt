@@ -1,0 +1,11 @@
+torch
+torchaudio
+pyannote.audio
+accelerate
+kenlm
+pysrt
+pydub
+python-dotenv
+evaluate
+pyctcdecode
+fsspec
