@@ -7,7 +7,7 @@ from pydub import AudioSegment
 from tqdm import tqdm
 import argparse
 
-ROW_DATA_DIR = "../row_data/files"
+ROW_DATA_DIR = "../row_data"
 DATASET_DIR = "../dataset"
 
 
@@ -95,5 +95,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--uid", required=True, help="Content unit uid")
     args = parser.parse_args()
-
-    prepare_dataset_by_uid(args.uid)
+    # prepare_dataset_by_uid(args.uid)
+    dirs = [d for d in os.listdir(ROW_DATA_DIR) if os.path.isdir(os.path.join(ROW_DATA_DIR,d))]
+    for dir in dirs:
+        print(f"Preparing dataset for {dir}")
+        prepare_dataset_by_uid(dir)
