@@ -19,6 +19,7 @@ pip-selfcheck.json
 /result.srt
 /audio.mp3
 
+
 models/
 .env
 dataset/
