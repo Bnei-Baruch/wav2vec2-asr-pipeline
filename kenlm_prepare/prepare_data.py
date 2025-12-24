@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from lib.db_connection import get_db_connection
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 load_dotenv()
 
@@ -18,14 +18,16 @@ INPUT_PATTERN = os.path.join(OUTPUT_DIR, "*.txt")
 TEST_FILE = os.path.join(OUTPUT_DIR, "test.txt")
 RESULT_FILE = os.path.join(OUTPUT_DIR, "train.txt")
 
-LIMIT = 300
 query = f"""
     SELECT f.uid FROM files f
     WHERE f.language = 'he'
     AND f.type = 'text'
-    AND f.properties->>'insert_type' = 'tamlil'
-    limit {LIMIT};
+    AND f.published = True
+    AND f.secure = 0
+    AND f.removed_at IS NULL
+    AND f.properties->>'insert_type' = 'tamlil';
 """
+
 
 def main():
     if os.path.exists(OUTPUT_DIR):
@@ -47,20 +49,20 @@ def main():
     print(f"Result file: {RESULT_FILE}")
     print(f"Test file: {TEST_FILE}")
 
+
 def split2result():
-    with open(RESULT_FILE, 'wb') as result_file, open(TEST_FILE, 'wb') as test_file:
+    with open(RESULT_FILE, "wb") as result_file, open(TEST_FILE, "wb") as test_file:
         i = 0
         for filename in glob.glob(INPUT_PATTERN):
             if filename == RESULT_FILE or filename == TEST_FILE:
-                    continue
+                continue
             i += 1
-            if i % 10 == 0:
-                with open(filename, 'rb') as readfile:
+            if i % 100 == 0:
+                with open(filename, "rb") as readfile:
                     shutil.copyfileobj(readfile, test_file)
             else:
-                with open(filename, 'rb') as readfile:
+                with open(filename, "rb") as readfile:
                     shutil.copyfileobj(readfile, result_file)
-
 
 
 def fetch_file_text(file_uid):
@@ -76,28 +78,39 @@ def fetch_file_text(file_uid):
     print(f"File text fetched and saved")
     return row_file_path
 
+
 def fetch_file_uids():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(query)
-    uids = cur.fetchall()
+    try:
+        cur.execute(query)
+        uids = cur.fetchall()
+    except Exception as e:
+        print(f"Error fetching file uids: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
     return uids
 
 
 def tokenize_text(text):
-    text = re.sub(r'([.,!?;:()\[\]"\'\-])', r' \1 ', text)
-    return re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'([.,!?;:()\[\]"\'\-])', r" \1 ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
 
 def prepare_dataset(input_file, output_file):
-    with open(input_file, 'r', encoding='utf-8') as f_in, \
-         open(output_file, 'w', encoding='utf-8') as f_out:
-        content = f_in.read()        
-        sentences = re.split(r'(?<=[.!?])\s+', content)
+    with open(input_file, "r", encoding="utf-8") as f_in, open(
+        output_file, "w", encoding="utf-8"
+    ) as f_out:
+        content = f_in.read()
+        sentences = re.split(r"(?<=[.!?])\s+", content)
         for sent in sentences:
             if not sent.strip():
                 continue
             tokenized_sent = tokenize_text(sent)
-            f_out.write(tokenized_sent + '\n')
+            f_out.write(tokenized_sent + "\n")
+
 
 if __name__ == "__main__":
     main()
