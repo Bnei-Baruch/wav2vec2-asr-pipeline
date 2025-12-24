@@ -1,26 +1,11 @@
-/mock.json
-
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-bin/
-include/
-lib/
-lib64
-pyvenv.cfg
-pip-selfcheck.json
+__pycache__
 
 .idea/
-**/*.iml
-/wait.txt
-/result.srt
-/audio.mp3
+audio.mp3
 
 
-models/
 .env
 dataset/
 row_data/
+.DS_Store
+kenlm/model.arpa
