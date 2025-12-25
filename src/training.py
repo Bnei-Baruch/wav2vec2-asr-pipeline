@@ -17,13 +17,9 @@ from transformers import (
     Trainer,
 )
 
-# 1. Config & Parameters
 # MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
-# DATASET_ID = "mozilla-foundation/common_voice_11_0"
-# LANGUAGE_ID = "he"
-# OUTPUT_DIR = "./wav2vec2-large-xlsr-hebrew"
-
-MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
+# MODEL_ID = "facebook/mms-1b "
+MODEL_ID = "facebook/wav2vec2-base"
 USE_LOCAL_DATA = True
 LOCAL_DATA_DIR = "./dataset"
 OUTPUT_DIR = "./models/wav2vec2-large-xlsr-custom"
@@ -139,13 +135,16 @@ def train():
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         group_by_length=True,
-        per_device_train_batch_size=8,
+        #per_device_train_batch_size=8,
+        per_device_train_batch_size=4,
         gradient_accumulation_steps=2,
         eval_strategy="steps",
-        num_train_epochs=30,
+        #num_train_epochs=30,
+        num_train_epochs=3,
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
-        save_steps=500,
+        #save_steps=500,
+        save_steps=50,
         eval_steps=500,
         logging_steps=500,
         learning_rate=1e-4,

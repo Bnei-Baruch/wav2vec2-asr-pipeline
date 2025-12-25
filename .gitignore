@@ -6,6 +6,7 @@ audio.mp3
 
 .env
 dataset/
+dataset*/
 row_data/
 .DS_Store
 kenlm.arpa
