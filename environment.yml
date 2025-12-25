@@ -1,4 +1,4 @@
-name: asr_env
+name: asr
 channels:
   - pytorch
   - conda-forge

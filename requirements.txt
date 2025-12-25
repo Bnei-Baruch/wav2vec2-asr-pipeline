@@ -9,3 +9,5 @@ python-dotenv
 evaluate
 pyctcdecode
 fsspec
+librosa
+soundfile

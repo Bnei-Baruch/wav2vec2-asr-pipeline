@@ -37,15 +37,15 @@ def run_pipeline(audio_path):
         tokenizer=processor.tokenizer,
         decoder=decoder,
     )
-    #speech, rate = torchaudio.load(audio_path)
-    #if rate != 16000:
+    # speech, rate = torchaudio.load(audio_path)
+    # if rate != 16000:
     #    resampler = torchaudio.transforms.Resample(rate, 16000)
     #    speech = resampler(speech)
-    #speech = speech.squeeze().numpy()
-    #inputs = processor_with_lm(speech, sampling_rate=16000, return_tensors="pt")
-    #with torch.no_grad():
+    # speech = speech.squeeze().numpy()
+    # inputs = processor_with_lm(speech, sampling_rate=16000, return_tensors="pt")
+    # with torch.no_grad():
     #    logits = model(inputs.input_values).logits
-    #result = processor_with_lm.batch_decode(logits.numpy())
+    # result = processor_with_lm.batch_decode(logits.numpy())
 
     asr_pipeline = pipeline(
         "automatic-speech-recognition",
@@ -83,12 +83,23 @@ def make_srt(result):
         f.write(srt_content)
 
 
+def check_is_ready():
+    return True
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ASR")
     parser.add_argument("--audio_path", type=str, required=False)
+    parser.add_argument("--check", action="store_true", required=False)
     args = parser.parse_args()
     print(f"Args: {args}")
-    audio_path = args.audio_path
-    if not audio_path or not os.path.exists(audio_path):
-        audio_path = "audio.mp3"
-    main(audio_path)
+    if args.check:
+        print("Checking if environment is ready...")
+        check_is_ready()
+        print("Environment is ready")
+        exit(0)
+    else:
+        audio_path = args.audio_path
+        if not audio_path or not os.path.exists(audio_path):
+            audio_path = "audio.mp3"
+        main(audio_path)
