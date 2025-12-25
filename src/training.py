@@ -25,8 +25,8 @@ from transformers import (
 
 MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
 USE_LOCAL_DATA = True
-LOCAL_DATA_DIR = "../dataset"
-OUTPUT_DIR = "../models/wav2vec2-large-xlsr-custom"
+LOCAL_DATA_DIR = "./dataset"
+OUTPUT_DIR = "./models/wav2vec2-large-xlsr-custom"
 
 def train():
     # 2. Load Dataset

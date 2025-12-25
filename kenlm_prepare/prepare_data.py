@@ -25,7 +25,8 @@ query = f"""
     AND f.published = True
     AND f.secure = 0
     AND f.removed_at IS NULL
-    AND f.properties->>'insert_type' = 'tamlil';
+    AND f.properties->>'insert_type' = 'tamlil'
+    limit 10;
 """
 
 
