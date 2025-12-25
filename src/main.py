@@ -84,7 +84,12 @@ def make_srt(result):
 
 
 def check_is_ready():
-    return True
+    if torch.cuda.is_available():
+        print(f"GPU available: {torch.cuda.get_device_name(0)}")
+        print(f"Number of devices: {torch.cuda.device_count()}")
+    else:
+        print("GPU not found, using CPU")
+
 
 
 if __name__ == "__main__":
