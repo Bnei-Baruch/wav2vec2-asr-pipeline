@@ -1,3 +1,4 @@
+from itertools import batched
 import json
 import os
 import re
@@ -37,15 +38,15 @@ def train():
     chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
-        print(f"Batch dataset: {batch}")
+        #print(f"Batch dataset: {batch}")
         batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
         return batch
 
-    dataset = dataset.map(remove_special_characters)
+    dataset = dataset.map(remove_special_characters, batch_size=500, keep_in_memory=False, batched=True)
 
     print("Create Vocabulary")
     def extract_all_chars(batch):
-        print(f"Batch vocab: {batch}")
+        #print(f"Batch vocab: {batch}")
         all_text = " ".join(batch["sentence"])
         vocab = list(set(all_text))
         return {"vocab": [vocab], "all_text": [all_text]}
