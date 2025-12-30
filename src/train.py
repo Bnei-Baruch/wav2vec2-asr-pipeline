@@ -25,7 +25,7 @@ LOCAL_DATA_DIR = "./dataset"
 OUTPUT_DIR = "./models/wav2vec2-large-xlsr-custom"
 
 def train():
-    # 2. Load Dataset
+    print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
     dirs = [os.path.join(LOCAL_DATA_DIR, uid) for uid in os.listdir(LOCAL_DATA_DIR)]
     print(f"Dirs: {dirs}")
@@ -33,7 +33,7 @@ def train():
     dataset = concatenate_datasets(all_datasets)
     print(f"Dataset: {dataset}")
 
-    # 3. Text Preprocessing
+    print("Text Preprocessing")
     chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
@@ -43,7 +43,7 @@ def train():
 
     dataset = dataset.map(remove_special_characters)
 
-    # 4. Create Vocabulary
+    print("Create Vocabulary")
     def extract_all_chars(batch):
         all_text = " ".join(batch["sentence"])
         vocab = list(set(all_text))
@@ -62,12 +62,12 @@ def train():
     with open('vocab.json', 'w') as vocab_file:
         json.dump(vocab_dict, vocab_file)
 
-    # 5. Processor
+    print("Create Processor")
     tokenizer = Wav2Vec2CTCTokenizer("./vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
     feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=True)
     processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
-    # 6. Prepare Audio
+    print("Prepare Audio")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
     def prepare_dataset(batch):
@@ -79,7 +79,7 @@ def train():
 
     dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=1)
 
-    # 7. Data Collator
+    print("Create Data Collator")
     @dataclass
     class DataCollatorCTCWithPadding:
         processor: Wav2Vec2Processor
@@ -107,7 +107,7 @@ def train():
 
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
 
-    # 8. Metric
+    print("Create Metric")
     wer_metric = evaluate.load("wer")
 
     def compute_metrics(pred):
@@ -119,7 +119,7 @@ def train():
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
         return {"wer": wer}
 
-    # 9. Model
+    print("Create Model")
     model = Wav2Vec2ForCTC.from_pretrained(
         MODEL_ID,
         attention_dropout=0.1,
@@ -133,7 +133,7 @@ def train():
     )
     model.freeze_feature_extractor()
 
-    # 10. Trainer
+    print("Create Trainer")
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         group_by_length=True,
