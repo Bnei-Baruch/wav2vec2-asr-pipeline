@@ -1,4 +1,3 @@
-from itertools import batched
 import json
 import os
 import re
@@ -42,7 +41,7 @@ def train():
         batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
         return batch
 
-    dataset = dataset.map(remove_special_characters, batch_size=1000, keep_in_memory=False, batched=True)
+    dataset = dataset.map(remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False)
 
     print("Create Vocabulary")
     def extract_all_chars(batch):
