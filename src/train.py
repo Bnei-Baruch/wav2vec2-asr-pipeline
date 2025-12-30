@@ -183,11 +183,14 @@ def train():
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
         # save_steps=500,
-        save_steps=50,
-        eval_steps=500,
-        logging_steps=500,
+        save_steps=5,
+        #eval_steps=500,
+        eval_steps=5,
+        #logging_steps=500,
+        logging_steps=5,
         learning_rate=1e-4,
-        warmup_steps=1000,
+        # warmup_steps=1000,
+        warmup_steps=5,
         save_total_limit=2,
     )
 
