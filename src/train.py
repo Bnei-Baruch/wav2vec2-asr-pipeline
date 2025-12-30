@@ -37,22 +37,22 @@ def train():
     chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
-        #print(f"Batch dataset: {batch}")
-        batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
+        print(f"Batch dataset")
+        batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"])
         return batch
 
-    dataset = dataset.map(remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False)
+    dataset = dataset.map(remove_special_characters, batched=True, batch_size=100, keep_in_memory=False)
 
     print("Create Vocabulary")
     def extract_all_chars(batch):
-        #print(f"Batch vocab: {batch}")
+        print(f"Batch vocab")
         all_text = " ".join(batch["sentence"])
         vocab = list(set(all_text))
         return {"vocab": [vocab], "all_text": [all_text]}
 
     print("Extract All Chars")
     # vocabs = dataset.map(extract_all_chars, batched=True, batch_size=-1, keep_in_memory=True, remove_columns=dataset.column_names)
-    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=1000, keep_in_memory=False, remove_columns=dataset.column_names)
+    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=100, keep_in_memory=False, remove_columns=dataset.column_names)
    
     print("Create Vocab Dict")
     vocab_list = list(set(vocabs["vocab"][0]))
