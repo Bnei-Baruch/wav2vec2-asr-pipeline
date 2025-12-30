@@ -50,7 +50,7 @@ def train():
         return {"vocab": [vocab], "all_text": [all_text]}
 
     # vocabs = dataset.map(extract_all_chars, batched=True, batch_size=-1, keep_in_memory=True, remove_columns=dataset.column_names)
-    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=1000, keep_in_memory=False, remove_columns=dataset.column_names)
+    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=500, keep_in_memory=False, remove_columns=dataset.column_names)
 
     vocab_list = list(set(vocabs["vocab"][0]))
     vocab_dict = {v: k for k, v in enumerate(sorted(vocab_list))}
