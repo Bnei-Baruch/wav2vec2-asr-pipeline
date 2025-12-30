@@ -5,12 +5,15 @@ from transformers import (
     Wav2Vec2Processor,
     Wav2Vec2ProcessorWithLM,
     Wav2Vec2ForCTC,
+    Wav2Vec2CTCTokenizer,
+    Wav2Vec2FeatureExtractor,
     pipeline,
 )
 from pyctcdecode import build_ctcdecoder
 
-#MODEL_NAME = "facebook/wav2vec2-base-960h"
-MODEL_NAME = "./models/wav2vec2-large-xlsr-custom"   
+# MODEL_NAME = "facebook/wav2vec2-base-960h"
+MODEL_NAME = "./models/wav2vec2-large-xlsr-custom"
+VOCAB_PATH = "./vocab.json"
 KENLM_MODEL_PATH = "./kenlm.arpa"
 
 
@@ -21,21 +24,31 @@ def main(audio_path):
 
 
 def run_pipeline(audio_path):
-    processor = Wav2Vec2Processor.from_pretrained(MODEL_NAME)
-    model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
+    tokenizer = Wav2Vec2CTCTokenizer(
+        VOCAB_PATH, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
+    )
 
-    vocab_dict = processor.tokenizer.get_vocab()
-    sorted_vocab_dict = sorted((v, k) for k, v in vocab_dict.items())
-    vocab = [k for _, k in sorted_vocab_dict]
+    vocab_dict = tokenizer.get_vocab()
+    vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])]
+
+    if "|" in vocab_dict:
+        vocab[vocab_dict["|"]] = " "
 
     decoder = build_ctcdecoder(
         labels=vocab,
         kenlm_model_path=KENLM_MODEL_PATH,
     )
 
+    feature_extractor = Wav2Vec2FeatureExtractor(
+        feature_size=1,
+        sampling_rate=16000,
+        padding_value=0.0,
+        do_normalize=True,
+        return_attention_mask=True,
+    )
     processor_with_lm = Wav2Vec2ProcessorWithLM(
-        feature_extractor=processor.feature_extractor,
-        tokenizer=processor.tokenizer,
+        feature_extractor=feature_extractor,
+        tokenizer=tokenizer,
         decoder=decoder,
     )
     # speech, rate = torchaudio.load(audio_path)
@@ -90,7 +103,6 @@ def check_is_ready():
         print(f"Number of devices: {torch.cuda.device_count()}")
     else:
         print("GPU not found, using CPU")
-
 
 
 if __name__ == "__main__":
