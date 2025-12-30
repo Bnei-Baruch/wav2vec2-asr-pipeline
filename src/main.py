@@ -12,7 +12,7 @@ from transformers import (
 from pyctcdecode import build_ctcdecoder
 
 # MODEL_NAME = "facebook/wav2vec2-base-960h"
-MODEL_NAME = "./models/wav2vec2-large-xlsr-custom"
+MODEL_NAME = "./models/wav2vec2-large-xlsr-custom/checkpoint-75"
 VOCAB_PATH = "./vocab.json"
 KENLM_MODEL_PATH = "./kenlm.arpa"
 
