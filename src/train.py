@@ -37,7 +37,7 @@ def train():
     chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
-        print(f"Batch: {batch}")
+        print(f"Batch dataset: {batch}")
         batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
         return batch
 
@@ -45,6 +45,7 @@ def train():
 
     print("Create Vocabulary")
     def extract_all_chars(batch):
+        print(f"Batch vocab: {batch}")
         all_text = " ".join(batch["sentence"])
         vocab = list(set(all_text))
         return {"vocab": [vocab], "all_text": [all_text]}
