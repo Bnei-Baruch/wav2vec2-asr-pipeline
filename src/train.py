@@ -24,6 +24,7 @@ USE_LOCAL_DATA = True
 LOCAL_DATA_DIR = "./dataset"
 OUTPUT_DIR = "./models/wav2vec2-large-xlsr-custom"
 
+
 def train():
     print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
@@ -34,16 +35,22 @@ def train():
     print(f"Dataset: {dataset}")
 
     print("Text Preprocessing")
-    chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"\“\%\‘\”\]]'
+    chars_to_ignore_regex = '[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
         print(f"Batch dataset")
-        batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"])
+        batch["sentence"] = [
+            re.sub(chars_to_ignore_regex, "", s).lower() if s is not None else ""
+            for s in batch["sentence"]
+        ]
         return batch
 
-    dataset = dataset.map(remove_special_characters, batched=True, batch_size=100, keep_in_memory=False)
+    dataset = dataset.map(
+        remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
+    )
 
     print("Create Vocabulary")
+
     def extract_all_chars(batch):
         print(f"Batch vocab")
         all_text = " ".join(batch["sentence"])
@@ -52,8 +59,14 @@ def train():
 
     print("Extract All Chars")
     # vocabs = dataset.map(extract_all_chars, batched=True, batch_size=-1, keep_in_memory=True, remove_columns=dataset.column_names)
-    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=100, keep_in_memory=False, remove_columns=dataset.column_names)
-   
+    vocabs = dataset.map(
+        extract_all_chars,
+        batched=True,
+        batch_size=1000,
+        keep_in_memory=False,
+        remove_columns=dataset.column_names,
+    )
+
     print("Create Vocab Dict")
     vocab_list = list(set(vocabs["vocab"][0]))
     vocab_dict = {v: k for k, v in enumerate(sorted(vocab_list))}
@@ -62,34 +75,53 @@ def train():
     vocab_dict["[UNK]"] = len(vocab_dict)
     vocab_dict["[PAD]"] = len(vocab_dict)
 
-    with open('vocab.json', 'w') as vocab_file:
+    with open("vocab.json", "w") as vocab_file:
         json.dump(vocab_dict, vocab_file)
 
     print("Create Processor")
-    tokenizer = Wav2Vec2CTCTokenizer("./vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
-    feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0, do_normalize=True, return_attention_mask=True)
-    processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
+    tokenizer = Wav2Vec2CTCTokenizer(
+        "./vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
+    )
+    feature_extractor = Wav2Vec2FeatureExtractor(
+        feature_size=1,
+        sampling_rate=16000,
+        padding_value=0.0,
+        do_normalize=True,
+        return_attention_mask=True,
+    )
+    processor = Wav2Vec2Processor(
+        feature_extractor=feature_extractor, tokenizer=tokenizer
+    )
 
     print("Prepare Audio")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
     def prepare_dataset(batch):
         audio = batch["audio"]
-        batch["input_values"] = processor(audio["array"], sampling_rate=audio["sampling_rate"]).input_values[0]
+        batch["input_values"] = processor(
+            audio["array"], sampling_rate=audio["sampling_rate"]
+        ).input_values[0]
         with processor.as_target_processor():
             batch["labels"] = processor(batch["sentence"]).input_ids
         return batch
 
-    dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=1)
+    dataset = dataset.map(
+        prepare_dataset, remove_columns=dataset.column_names, num_proc=1
+    )
 
     print("Create Data Collator")
+
     @dataclass
     class DataCollatorCTCWithPadding:
         processor: Wav2Vec2Processor
         padding: Union[bool, str] = True
 
-        def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
-            input_features = [{"input_values": feature["input_values"]} for feature in features]
+        def __call__(
+            self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
+        ) -> Dict[str, torch.Tensor]:
+            input_features = [
+                {"input_values": feature["input_values"]} for feature in features
+            ]
             label_features = [{"input_ids": feature["labels"]} for feature in features]
 
             batch = self.processor.feature_extractor.pad(
@@ -104,7 +136,9 @@ def train():
                     return_tensors="pt",
                 )
 
-            labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
+            labels = labels_batch["input_ids"].masked_fill(
+                labels_batch.attention_mask.ne(1), -100
+            )
             batch["labels"] = labels
             return batch
 
@@ -140,15 +174,15 @@ def train():
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         group_by_length=True,
-        #per_device_train_batch_size=8,
+        # per_device_train_batch_size=8,
         per_device_train_batch_size=4,
         gradient_accumulation_steps=2,
         eval_strategy="steps",
-        #num_train_epochs=30,
+        # num_train_epochs=30,
         num_train_epochs=3,
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
-        #save_steps=500,
+        # save_steps=500,
         save_steps=50,
         eval_steps=500,
         logging_steps=500,
@@ -163,12 +197,13 @@ def train():
         args=training_args,
         compute_metrics=compute_metrics,
         train_dataset=dataset,
-        eval_dataset=dataset, 
+        eval_dataset=dataset,
         tokenizer=processor.feature_extractor,
     )
 
     print("Starting training...")
     trainer.train()
+
 
 if __name__ == "__main__":
     train()
