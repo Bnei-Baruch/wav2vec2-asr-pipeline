@@ -2,9 +2,7 @@ import argparse
 import os
 import torch
 from transformers import (
-    Wav2Vec2Processor,
     Wav2Vec2ProcessorWithLM,
-    Wav2Vec2ForCTC,
     Wav2Vec2CTCTokenizer,
     Wav2Vec2FeatureExtractor,
     pipeline,
