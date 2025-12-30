@@ -42,7 +42,7 @@ def train():
         batch["sentence"] = re.sub(chars_to_ignore_regex, '', batch["sentence"]).lower()
         return batch
 
-    dataset = dataset.map(remove_special_characters, batch_size=500, keep_in_memory=False, batched=True)
+    dataset = dataset.map(remove_special_characters, batch_size=1000, keep_in_memory=False, batched=True)
 
     print("Create Vocabulary")
     def extract_all_chars(batch):
@@ -53,7 +53,7 @@ def train():
 
     print("Extract All Chars")
     # vocabs = dataset.map(extract_all_chars, batched=True, batch_size=-1, keep_in_memory=True, remove_columns=dataset.column_names)
-    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=500, keep_in_memory=False, remove_columns=dataset.column_names)
+    vocabs = dataset.map(extract_all_chars, batched=True, batch_size=1000, keep_in_memory=False, remove_columns=dataset.column_names)
    
     print("Create Vocab Dict")
     vocab_list = list(set(vocabs["vocab"][0]))
