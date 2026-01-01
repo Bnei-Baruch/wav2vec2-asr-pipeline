@@ -34,6 +34,9 @@ def prepare_dataset(audio_path, srt_path, output_dir):
             sub.end.hours * 3600 + sub.end.minutes * 60 + sub.end.seconds
         ) * 1000 + sub.end.milliseconds
 
+        if end_ms - start_ms > 10000:
+            continue
+
         chunk = audio[start_ms:end_ms]
 
         clip_name = f"clip_{i:06d}.wav"
