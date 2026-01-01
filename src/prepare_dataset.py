@@ -104,5 +104,5 @@ if __name__ == "__main__":
     dirs = [d for d in os.listdir(ROW_DATA_DIR) if os.path.isdir(os.path.join(ROW_DATA_DIR,d))]
     for dir in dirs:
         print(f"Preparing dataset for {dir}")
-        time.sleep(30)
+        time.sleep(10)
         prepare_dataset_by_uid(dir)
