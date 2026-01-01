@@ -39,6 +39,7 @@ def prepare_dataset(audio_path, srt_path, output_dir):
         clip_name = f"clip_{i:06d}.wav"
         clip_path = os.path.join(clips_dir, clip_name)
 
+        chunk = chunk.set_frame_rate(16000).set_channels(1)
         chunk.export(clip_path, format="wav")
         text = sub.text.replace("\n", " ").strip()
 
