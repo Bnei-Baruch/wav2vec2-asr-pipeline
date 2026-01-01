@@ -34,7 +34,7 @@ def prepare_dataset(audio_path, srt_path, output_dir):
             sub.end.hours * 3600 + sub.end.minutes * 60 + sub.end.seconds
         ) * 1000 + sub.end.milliseconds
 
-        if end_ms - start_ms > 10000:
+        if end_ms - start_ms > 15000:
             print(f"too long: {sub.text} {start_ms}ms - {end_ms}ms {end_ms - start_ms}ms")
             continue
 
@@ -105,5 +105,8 @@ if __name__ == "__main__":
     dirs = [d for d in os.listdir(ROW_DATA_DIR) if os.path.isdir(os.path.join(ROW_DATA_DIR,d))]
     for dir in dirs:
         print(f"Preparing dataset for {dir}")
+        if os.path.exists(os.path.join(DATASET_DIR, dir)):
+            print(f"Dataset already exists for {dir}")
+            continue
         time.sleep(10)
         prepare_dataset_by_uid(dir)
