@@ -34,7 +34,8 @@ def prepare_dataset(audio_path, srt_path, output_dir):
             sub.end.hours * 3600 + sub.end.minutes * 60 + sub.end.seconds
         ) * 1000 + sub.end.milliseconds
 
-        if end_ms - start_ms > 10000:
+        if end_ms - start_ms > 15000:
+            print(f"too long: {sub.text} {start_ms}ms - {end_ms}ms {end_ms - start_ms}ms")
             continue
 
         chunk = audio[start_ms:end_ms]
