@@ -17,12 +17,11 @@ from transformers import (
     Trainer,
 )
 
-# MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
+MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
 # MODEL_ID = "facebook/mms-1b "
-MODEL_ID = "facebook/wav2vec2-base"
-USE_LOCAL_DATA = True
+#MODEL_ID = "facebook/wav2vec2-base"
 LOCAL_DATA_DIR = "./dataset"
-OUTPUT_DIR = "./models/wav2vec2-large-xlsr-custom"
+OUTPUT_DIR = "./models/wav2vec2-large-xlsr-53"
 
 
 def train():
@@ -174,23 +173,23 @@ def train():
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         group_by_length=True,
-        # per_device_train_batch_size=8,
-        per_device_train_batch_size=4,
+        per_device_train_batch_size=8,
+        # per_device_train_batch_size=4,
         gradient_accumulation_steps=2,
         eval_strategy="steps",
-        # num_train_epochs=30,
-        num_train_epochs=3,
+        num_train_epochs=30,
+        # num_train_epochs=3,
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
-        # save_steps=500,
-        save_steps=5,
-        #eval_steps=500,
-        eval_steps=5,
-        #logging_steps=500,
-        logging_steps=5,
+        save_steps=500,
+        # save_steps=5,
+        eval_steps=500,
+        # eval_steps=5,
+        logging_steps=500,
+        # logging_steps=5,
         learning_rate=1e-4,
-        # warmup_steps=1000,
-        warmup_steps=5,
+        warmup_steps=1000,
+        # warmup_steps=5,
         save_total_limit=2,
     )
 
