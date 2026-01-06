@@ -11,3 +11,4 @@ pyctcdecode
 fsspec
 librosa
 soundfile
+tensorboard

@@ -190,7 +190,7 @@ def train():
         learning_rate=1e-4,
         warmup_steps=1000,
         # warmup_steps=5,
-        save_total_limit=2,
+        save_total_limit=1,
     )
 
     trainer = Trainer(
