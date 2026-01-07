@@ -75,6 +75,8 @@ def prepare_dataset_by_uid(uid: str):
     files = [f for f in os.listdir(dir) if isfile(join(dir, f))]
     output_dir = join(DATASET_DIR, uid)
     os.makedirs(output_dir, exist_ok=True)
+    audio_path = None
+    srt_path = None
     for file in files:
         if file.endswith(".csv"):
             url = url_from_csv(join(dir, file))
