@@ -84,9 +84,14 @@ def prepare_dataset_by_uid(uid: str):
             else:
                 audio_path = download_audio(url, output_dir)
                 time.sleep(10)
-        else:
+        elif file.endswith(".srt"):
             srt_path = join(dir, file)
-        return prepare_dataset(audio_path, srt_path, output_dir)
+        else:
+            continue
+    if audio_path is None or srt_path is None:
+        print(f"Audio or SRT file not found for {uid}")
+        return None
+    return prepare_dataset(audio_path, srt_path, output_dir)
 
 
 def url_from_csv(path: str):
