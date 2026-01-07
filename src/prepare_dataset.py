@@ -35,7 +35,15 @@ def prepare_dataset(audio_path, srt_path, output_dir):
         ) * 1000 + sub.end.milliseconds
 
         if end_ms - start_ms > 15000:
-            print(f"too long: {sub.text} {start_ms}ms - {end_ms}ms {end_ms - start_ms}ms")
+            print(
+                f"too long: {sub.text} duration: {end_ms - start_ms}ms"
+            )
+            continue
+
+        if end_ms - start_ms < 1000 or sub.text.strip() == "":
+            print(
+                f"too short or empty: {sub.text} duration: {end_ms - start_ms}ms"
+            )
             continue
 
         chunk = audio[start_ms:end_ms]
@@ -70,10 +78,15 @@ def prepare_dataset_by_uid(uid: str):
     for file in files:
         if file.endswith(".csv"):
             url = url_from_csv(join(dir, file))
-            audio_path = download_audio(url, output_dir)
+            a_file = url.split("/")[-1]
+            if isfile(join(dir, a_file)):
+                audio_path = join(dir, a_file)
+            else:
+                audio_path = download_audio(url, output_dir)
+                time.sleep(10)
         else:
             srt_path = join(dir, file)
-    return prepare_dataset(audio_path, srt_path, output_dir)
+        return prepare_dataset(audio_path, srt_path, output_dir)
 
 
 def url_from_csv(path: str):
@@ -83,7 +96,6 @@ def url_from_csv(path: str):
         url = list(reader)[1][2]
         print(f"URL: {url}")
         return url
-
 
 def download_audio(url: str, dir: str):
     os.makedirs(dir, exist_ok=True)
@@ -108,5 +120,4 @@ if __name__ == "__main__":
         if os.path.exists(os.path.join(DATASET_DIR, dir)):
             print(f"Dataset already exists for {dir}")
             continue
-        time.sleep(10)
         prepare_dataset_by_uid(dir)
