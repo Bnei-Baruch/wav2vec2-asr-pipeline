@@ -17,27 +17,26 @@ from transformers import (
     Trainer,
 )
 
-MODEL_ID = "facebook/wav2vec2-large-xlsr-53"
+MODEL_ID = "facebook/wav2vec2-xls-r-300m"
 # MODEL_ID = "facebook/mms-1b "
-#MODEL_ID = "facebook/wav2vec2-base"
+# MODEL_ID = "facebook/wav2vec2-base"
 LOCAL_DATA_DIR = "./dataset"
-OUTPUT_DIR = "./models/wav2vec2-large-xlsr-53"
+OUTPUT_DIR = "./models/wav2vec2-xls-r-300m"
+VOCAB_PATH = "./vocab.json"
 
 
 def train():
     print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
     dirs = [os.path.join(LOCAL_DATA_DIR, uid) for uid in os.listdir(LOCAL_DATA_DIR)]
-    print(f"Dirs: {dirs}")
     all_datasets = [load_dataset("audiofolder", data_dir=d)["train"] for d in dirs]
     dataset = concatenate_datasets(all_datasets)
     print(f"Dataset: {dataset}")
 
     print("Text Preprocessing")
-    chars_to_ignore_regex = '[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
+    chars_to_ignore_regex = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
-        print(f"Batch dataset")
         batch["sentence"] = [
             re.sub(chars_to_ignore_regex, "", s).lower() if s is not None else ""
             for s in batch["sentence"]
@@ -48,38 +47,44 @@ def train():
         remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
     )
 
-    print("Create Vocabulary")
+    if not os.path.exists(VOCAB_PATH):
+        print("Create Vocabulary")
 
-    def extract_all_chars(batch):
-        print(f"Batch vocab")
-        all_text = " ".join(batch["sentence"])
-        vocab = list(set(all_text))
-        return {"vocab": [vocab], "all_text": [all_text]}
+        def extract_all_chars(batch):
+            all_text = " ".join(batch["sentence"])
+            vocab = list(set(all_text))
+            return {"vocab": [vocab]}
 
-    print("Extract All Chars")
-    # vocabs = dataset.map(extract_all_chars, batched=True, batch_size=-1, keep_in_memory=True, remove_columns=dataset.column_names)
-    vocabs = dataset.map(
-        extract_all_chars,
-        batched=True,
-        batch_size=1000,
-        keep_in_memory=False,
-        remove_columns=dataset.column_names,
-    )
+        print("Extract All Chars")
+        vocabs = dataset.map(
+            extract_all_chars,
+            batched=True,
+            batch_size=1000,
+            keep_in_memory=False,
+            remove_columns=dataset.column_names,
+        )
 
-    print("Create Vocab Dict")
-    vocab_list = list(set(vocabs["vocab"][0]))
-    vocab_dict = {v: k for k, v in enumerate(sorted(vocab_list))}
-    vocab_dict["|"] = vocab_dict[" "]
-    del vocab_dict[" "]
-    vocab_dict["[UNK]"] = len(vocab_dict)
-    vocab_dict["[PAD]"] = len(vocab_dict)
+        print("Create Vocab Dict")
+        vocab_set = set()
+        for v in vocabs["vocab"]:
+            vocab_set.update(v)
+        vocab_list = sorted(vocab_set)
 
-    with open("vocab.json", "w") as vocab_file:
-        json.dump(vocab_dict, vocab_file)
+        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+        if " " in vocab_dict:
+            vocab_dict["|"] = vocab_dict[" "]
+            del vocab_dict[" "]
+        vocab_dict["[UNK]"] = len(vocab_dict)
+        vocab_dict["[PAD]"] = len(vocab_dict)
+
+        with open(VOCAB_PATH, "w") as vocab_file:
+            json.dump(vocab_dict, vocab_file)
+    else:
+        print(f"Using existing vocab at {VOCAB_PATH}")
 
     print("Create Processor")
     tokenizer = Wav2Vec2CTCTokenizer(
-        "./vocab.json", unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
+        VOCAB_PATH, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
     )
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1,
@@ -95,6 +100,11 @@ def train():
     print("Prepare Audio")
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
+    print("Split train/eval")
+    split = dataset.train_test_split(test_size=0.05, seed=42)
+    train_ds = split["train"]
+    eval_ds = split["test"]
+
     def prepare_dataset(batch):
         audio = batch["audio"]
         batch["input_values"] = processor(
@@ -104,8 +114,16 @@ def train():
             batch["labels"] = processor(batch["sentence"]).input_ids
         return batch
 
-    dataset = dataset.map(
-        prepare_dataset, remove_columns=dataset.column_names, num_proc=1
+    num_proc = max(1, min(8, (os.cpu_count() or 1)))
+    train_ds = train_ds.map(
+        prepare_dataset,
+        remove_columns=train_ds.column_names,
+        num_proc=num_proc,
+    )
+    eval_ds = eval_ds.map(
+        prepare_dataset,
+        remove_columns=eval_ds.column_names,
+        num_proc=num_proc,
     )
 
     print("Create Data Collator")
@@ -181,16 +199,21 @@ def train():
         # num_train_epochs=3,
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
-        save_steps=500,
+        save_steps=1000,
         # save_steps=5,
-        eval_steps=100,
+        eval_steps=1000,
         # eval_steps=5,
-        logging_steps=100,
+        logging_steps=50,
         # logging_steps=5,
         learning_rate=1e-4,
-        warmup_steps=1000,
+        warmup_steps=50,
         # warmup_steps=5,
-        save_total_limit=1,
+        save_total_limit=2,
+        load_best_model_at_end=True,
+        metric_for_best_model="wer",
+        greater_is_better=False,
+        dataloader_num_workers=num_proc,
+        dataloader_pin_memory=torch.cuda.is_available(),
     )
 
     trainer = Trainer(
@@ -198,9 +221,9 @@ def train():
         data_collator=data_collator,
         args=training_args,
         compute_metrics=compute_metrics,
-        train_dataset=dataset,
-        eval_dataset=dataset,
-        tokenizer=processor.feature_extractor,
+        train_dataset=train_ds,
+        eval_dataset=eval_ds,
+        tokenizer=processor,
     )
 
     print("Starting training...")
