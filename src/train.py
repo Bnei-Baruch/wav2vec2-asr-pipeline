@@ -110,8 +110,7 @@ def train():
         batch["input_values"] = processor(
             audio["array"], sampling_rate=audio["sampling_rate"]
         ).input_values[0]
-        with processor.as_target_processor():
-            batch["labels"] = processor(batch["sentence"]).input_ids
+        batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
     num_proc = max(1, min(8, (os.cpu_count() or 1)))
