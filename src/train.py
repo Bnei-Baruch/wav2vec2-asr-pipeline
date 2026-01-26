@@ -129,6 +129,10 @@ def train():
         return batch
 
     num_proc = max(1, min(8, (os.cpu_count() or 1)))
+    # Для DDP режима уменьшаем num_proc, чтобы избежать перегрузки
+    if dist.is_initialized():
+        num_proc = max(1, num_proc // dist.get_world_size())
+    
     train_ds = train_ds.map(
         prepare_dataset,
         remove_columns=train_ds.column_names,
