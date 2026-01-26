@@ -180,7 +180,7 @@ def train():
         hidden_dropout=0.1,
         feat_proj_dropout=0.0,
         mask_time_prob=0.05,
-        layerdrop=0.1,
+        layerdrop=0.0,
         ctc_loss_reduction="mean",
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
