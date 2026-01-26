@@ -1,11 +1,13 @@
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from datasets import concatenate_datasets, load_dataset, Audio
 import evaluate
 from transformers import (
@@ -47,40 +49,53 @@ def train():
         remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
     )
 
+    rank = int(os.environ.get("RANK", 0))
+    
     if not os.path.exists(VOCAB_PATH):
-        print("Create Vocabulary")
+        if rank == 0:
+            print("Create Vocabulary")
 
-        def extract_all_chars(batch):
-            all_text = " ".join(batch["sentence"])
-            vocab = list(set(all_text))
-            return {"vocab": [vocab]}
+            def extract_all_chars(batch):
+                all_text = " ".join(batch["sentence"])
+                vocab = list(set(all_text))
+                return {"vocab": [vocab]}
 
-        print("Extract All Chars")
-        vocabs = dataset.map(
-            extract_all_chars,
-            batched=True,
-            batch_size=1000,
-            keep_in_memory=False,
-            remove_columns=dataset.column_names,
-        )
+            print("Extract All Chars")
+            vocabs = dataset.map(
+                extract_all_chars,
+                batched=True,
+                batch_size=1000,
+                keep_in_memory=False,
+                remove_columns=dataset.column_names,
+            )
 
-        print("Create Vocab Dict")
-        vocab_set = set()
-        for v in vocabs["vocab"]:
-            vocab_set.update(v)
-        vocab_list = sorted(vocab_set)
+            print("Create Vocab Dict")
+            vocab_set = set()
+            for v in vocabs["vocab"]:
+                vocab_set.update(v)
+            vocab_list = sorted(vocab_set)
 
-        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-        if " " in vocab_dict:
-            vocab_dict["|"] = vocab_dict[" "]
-            del vocab_dict[" "]
-        vocab_dict["[UNK]"] = len(vocab_dict)
-        vocab_dict["[PAD]"] = len(vocab_dict)
+            vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+            if " " in vocab_dict:
+                vocab_dict["|"] = vocab_dict[" "]
+                del vocab_dict[" "]
+            vocab_dict["[UNK]"] = len(vocab_dict)
+            vocab_dict["[PAD]"] = len(vocab_dict)
 
-        with open(VOCAB_PATH, "w") as vocab_file:
-            json.dump(vocab_dict, vocab_file)
+            with open(VOCAB_PATH, "w") as vocab_file:
+                json.dump(vocab_dict, vocab_file)
+        else:
+            # Ждем создания vocab.json от rank 0
+            print(f"Rank {rank}: waiting for vocab.json...")
+            while not os.path.exists(VOCAB_PATH):
+                time.sleep(1)
+            print(f"Rank {rank}: vocab.json found")
     else:
         print(f"Using existing vocab at {VOCAB_PATH}")
+    
+    # Синхронизация процессов
+    if dist.is_initialized():
+        dist.barrier()
 
     print("Create Processor")
     tokenizer = Wav2Vec2CTCTokenizer(
