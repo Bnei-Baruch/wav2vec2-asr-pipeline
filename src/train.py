@@ -29,7 +29,7 @@ def train():
     print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
     dirs = [os.path.join(LOCAL_DATA_DIR, uid) for uid in os.listdir(LOCAL_DATA_DIR)]
-    all_datasets = [load_dataset("audiofolder", data_dir=d)["train"] for d in dirs]
+    all_datasets = [load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"] for d in dirs]
     dataset = concatenate_datasets(all_datasets)
     print(f"Dataset: {dataset}")
 
