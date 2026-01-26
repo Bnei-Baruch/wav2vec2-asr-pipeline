@@ -31,7 +31,10 @@ def train():
     print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
     dirs = [os.path.join(LOCAL_DATA_DIR, uid) for uid in os.listdir(LOCAL_DATA_DIR)]
-    all_datasets = [load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"] for d in dirs]
+    all_datasets = [
+        load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"]
+        for d in dirs
+    ]
     dataset = concatenate_datasets(all_datasets)
     print(f"Dataset: {dataset}")
 
@@ -50,52 +53,41 @@ def train():
     )
 
     rank = int(os.environ.get("RANK", 0))
-    
+
     if not os.path.exists(VOCAB_PATH):
-        if rank == 0:
-            print("Create Vocabulary")
+        print("Create Vocabulary")
 
-            def extract_all_chars(batch):
-                all_text = " ".join(batch["sentence"])
-                vocab = list(set(all_text))
-                return {"vocab": [vocab]}
+        def extract_all_chars(batch):
+            all_text = " ".join(batch["sentence"])
+            vocab = list(set(all_text))
+            return {"vocab": [vocab]}
 
-            print("Extract All Chars")
-            vocabs = dataset.map(
-                extract_all_chars,
-                batched=True,
-                batch_size=1000,
-                keep_in_memory=False,
-                remove_columns=dataset.column_names,
-            )
+        print("Extract All Chars")
+        vocabs = dataset.map(
+            extract_all_chars,
+            batched=True,
+            batch_size=1000,
+            keep_in_memory=False,
+            remove_columns=dataset.column_names,
+        )
 
-            print("Create Vocab Dict")
-            vocab_set = set()
-            for v in vocabs["vocab"]:
-                vocab_set.update(v)
-            vocab_list = sorted(vocab_set)
+        print("Create Vocab Dict")
+        vocab_set = set()
+        for v in vocabs["vocab"]:
+            vocab_set.update(v)
+        vocab_list = sorted(vocab_set)
 
-            vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-            if " " in vocab_dict:
-                vocab_dict["|"] = vocab_dict[" "]
-                del vocab_dict[" "]
-            vocab_dict["[UNK]"] = len(vocab_dict)
-            vocab_dict["[PAD]"] = len(vocab_dict)
+        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
+        if " " in vocab_dict:
+            vocab_dict["|"] = vocab_dict[" "]
+            del vocab_dict[" "]
+        vocab_dict["[UNK]"] = len(vocab_dict)
+        vocab_dict["[PAD]"] = len(vocab_dict)
 
-            with open(VOCAB_PATH, "w") as vocab_file:
-                json.dump(vocab_dict, vocab_file)
-        else:
-            # Ждем создания vocab.json от rank 0
-            print(f"Rank {rank}: waiting for vocab.json...")
-            while not os.path.exists(VOCAB_PATH):
-                time.sleep(1)
-            print(f"Rank {rank}: vocab.json found")
+        with open(VOCAB_PATH, "w") as vocab_file:
+            json.dump(vocab_dict, vocab_file)
     else:
         print(f"Using existing vocab at {VOCAB_PATH}")
-    
-    # Синхронизация процессов
-    if dist.is_initialized():
-        dist.barrier()
 
     print("Create Processor")
     tokenizer = Wav2Vec2CTCTokenizer(
@@ -128,21 +120,8 @@ def train():
         batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
-    num_proc = max(1, min(8, (os.cpu_count() or 1)))
-    # Для DDP режима уменьшаем num_proc, чтобы избежать перегрузки
-    if dist.is_initialized():
-        num_proc = max(1, num_proc // dist.get_world_size())
-    
-    train_ds = train_ds.map(
-        prepare_dataset,
-        remove_columns=train_ds.column_names,
-        num_proc=num_proc,
-    )
-    eval_ds = eval_ds.map(
-        prepare_dataset,
-        remove_columns=eval_ds.column_names,
-        num_proc=num_proc,
-    )
+    train_ds = train_ds.map(prepare_dataset, remove_columns=train_ds.column_names)
+    eval_ds = eval_ds.map(prepare_dataset, remove_columns=eval_ds.column_names)
 
     print("Create Data Collator")
 
