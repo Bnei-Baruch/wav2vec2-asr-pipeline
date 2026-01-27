@@ -39,6 +39,8 @@ def run_pipeline(audio_path):
     else:
         print("Warning: vocab has no word delimiter token ('|' or ' ')")
 
+    print(f"Vocab: {vocab}")
+
     if False or os.path.exists(KENLM_MODEL_PATH):
         decoder = build_ctcdecoder(
             labels=vocab,
@@ -48,6 +50,7 @@ def run_pipeline(audio_path):
         print(f"Warning: kenlm model not found at {KENLM_MODEL_PATH}, using decoder without LM")
         decoder = build_ctcdecoder(labels=vocab)
 
+    print(f"Decoder: {decoder}")
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1,
         sampling_rate=16000,
