@@ -39,7 +39,7 @@ def run_pipeline(audio_path):
     else:
         print("Warning: vocab has no word delimiter token ('|' or ' ')")
 
-    if os.path.exists(KENLM_MODEL_PATH):
+    if False or os.path.exists(KENLM_MODEL_PATH):
         decoder = build_ctcdecoder(
             labels=vocab,
             kenlm_model_path=KENLM_MODEL_PATH,
@@ -60,15 +60,6 @@ def run_pipeline(audio_path):
         tokenizer=tokenizer,
         decoder=decoder,
     )
-    # speech, rate = torchaudio.load(audio_path)
-    # if rate != 16000:
-    #    resampler = torchaudio.transforms.Resample(rate, 16000)
-    #    speech = resampler(speech)
-    # speech = speech.squeeze().numpy()
-    # inputs = processor_with_lm(speech, sampling_rate=16000, return_tensors="pt")
-    # with torch.no_grad():
-    #    logits = model(inputs.input_values).logits
-    # result = processor_with_lm.batch_decode(logits.numpy())
 
     asr_pipeline = pipeline(
         "automatic-speech-recognition",
@@ -81,7 +72,7 @@ def run_pipeline(audio_path):
 
     result = asr_pipeline(audio_path, return_timestamps="word", batch_size=16)
 
-    print(f"\n\n\nResult text: \n{result}\n\n\n")
+    print(f"\n\n\nResult text: \n{result['text']}\n\n\n")
     return result
 
 
