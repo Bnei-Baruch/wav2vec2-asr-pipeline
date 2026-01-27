@@ -10,7 +10,7 @@ from transformers import (
 from pyctcdecode import build_ctcdecoder
 
 # MODEL_NAME = "facebook/wav2vec2-base-960h"
-MODEL_NAME = "./models/wav2vec2-xls-r-300m/checkpoint-75"
+MODEL_NAME = "./models/wav2vec2-xls-r-300m/checkpoint-79260"
 VOCAB_PATH = "./vocab.json"
 KENLM_MODEL_PATH = "./kenlm.arpa"
 
@@ -22,6 +22,9 @@ def main(audio_path):
 
 
 def run_pipeline(audio_path):
+    if not os.path.exists(VOCAB_PATH):
+        raise FileNotFoundError(f"Vocab file not found: {VOCAB_PATH}")
+
     tokenizer = Wav2Vec2CTCTokenizer(
         VOCAB_PATH, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
     )
@@ -31,11 +34,19 @@ def run_pipeline(audio_path):
 
     if "|" in vocab_dict:
         vocab[vocab_dict["|"]] = " "
+    elif " " in vocab_dict:
+        vocab[vocab_dict[" "]] = " "
+    else:
+        print("Warning: vocab has no word delimiter token ('|' or ' ')")
 
-    decoder = build_ctcdecoder(
-        labels=vocab,
-        kenlm_model_path=KENLM_MODEL_PATH,
-    )
+    if os.path.exists(KENLM_MODEL_PATH):
+        decoder = build_ctcdecoder(
+            labels=vocab,
+            kenlm_model_path=KENLM_MODEL_PATH,
+        )
+    else:
+        print(f"Warning: kenlm model not found at {KENLM_MODEL_PATH}, using decoder without LM")
+        decoder = build_ctcdecoder(labels=vocab)
 
     feature_extractor = Wav2Vec2FeatureExtractor(
         feature_size=1,
