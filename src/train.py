@@ -52,8 +52,6 @@ def train():
         remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
     )
 
-    rank = int(os.environ.get("RANK", 0))
-
     if not os.path.exists(VOCAB_PATH):
         print("Create Vocabulary")
 

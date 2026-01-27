@@ -7,6 +7,7 @@ import pysrt
 from pydub import AudioSegment
 from tqdm import tqdm
 import argparse
+import numpy as np
 
 ROW_DATA_DIR = "./row_data"
 DATASET_DIR = "./dataset"
@@ -52,16 +53,18 @@ def prepare_dataset(audio_path, srt_path, output_dir):
         clip_path = os.path.join(clips_dir, clip_name)
 
         chunk = chunk.set_frame_rate(16000).set_channels(1)
+        samples = np.array(chunk.get_array_of_samples())
         chunk.export(clip_path, format="wav")
         text = sub.text.replace("\n", " ").strip()
 
         if text:  # skip empty
-            metadata.append({"file_name": f"clips/{clip_name}", "sentence": text})
+            _path = os.path.join(output_dir, "clips", clip_name)
+            metadata.append({"path": _path, "sentence": text, "audio": samples})
 
     csv_path = os.path.join(output_dir, "metadata.csv")
     print(f"Writing metadata to {csv_path}")
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["file_name", "sentence"])
+        writer = csv.DictWriter(f, fieldnames=["path", "sentence", "audio"])
         writer.writeheader()
         writer.writerows(metadata)
 
