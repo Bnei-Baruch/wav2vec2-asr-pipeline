@@ -31,8 +31,6 @@ CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
 def train():
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
     dataset = load_dataset("csv", data_files=f"{LOCAL_DATA_DIR}/*.csv")["train"]
-    print(f"Dataset: {dataset}")
-    print(dataset[0])
 
     print("Text Preprocessing")
 
