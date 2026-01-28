@@ -12,7 +12,10 @@ from transformers import Wav2Vec2FeatureExtractor
 from .constants import ROW_DATA_DIR, DATASET_DIR
 
 
-def prepare_dataset(audio_path, srt_path, csv_path):
+
+def prepare_dataset(audio_path, srt_path, output_dir):
+    clips_dir = os.path.join(output_dir, "clips")
+    os.makedirs(clips_dir, exist_ok=True)
     print(f"Loading audio: {audio_path}")
     audio = AudioSegment.from_file(audio_path)
 
@@ -22,65 +25,50 @@ def prepare_dataset(audio_path, srt_path, csv_path):
 
     metadata = []
 
-    fe = Wav2Vec2FeatureExtractor(
-        feature_size=1,
-        sampling_rate=16000,
-        padding_value=0.0,
-        do_normalize=True,
-        return_attention_mask=True,
-    )
-
     print("Processing segments...")
     for i, sub in enumerate(tqdm(subs)):
-        start_ms = (
-            sub.start.hours * 3600 + sub.start.minutes * 60 + sub.start.seconds
-        ) * 1000 + sub.start.milliseconds
-        end_ms = (
-            sub.end.hours * 3600 + sub.end.minutes * 60 + sub.end.seconds
-        ) * 1000 + sub.end.milliseconds
-
-        if end_ms - start_ms > 15000:
-            print(f"too long: {sub.text} duration: {end_ms - start_ms}ms")
-            continue
-
-        if end_ms - start_ms < 1000 or sub.text.strip() == "":
-            print(f"too short or empty: {sub.text} duration: {end_ms - start_ms}ms")
-            continue
-
-        chunk = audio[start_ms:end_ms]
-        chunk = chunk.set_frame_rate(16000).set_channels(1)
-
-        samples = np.array(chunk.get_array_of_samples(), dtype=np.float32)
-        samples /= 2 ** (8 * chunk.sample_width - 1)
-        out = fe(samples, sampling_rate=16000, return_tensors="np")
-
+        start_ms = msBySubEdge(sub.start)
+        end_ms = msBySubEdge(sub.end)
         text = sub.text.replace("\n", " ").strip()
         if not text:
             print(f"empty text")
             continue
 
-        input_values = out["input_values"][0]
-
-        if len(input_values) < 100:
-            print(f"too short: input_values length: {len(input_values)}")
+        if end_ms - start_ms > 15000:
+            print(f"too long: {sub.text} duration: {end_ms - start_ms}ms")
             continue
 
-        metadata.append({"sentence": text, "input_values": input_values})
-    print(f"Writing metadata to {csv_path}")
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["sentence", "input_values"])
+        if end_ms - start_ms < 1000:
+            print(f"too short: {sub.text} duration: {end_ms - start_ms}ms")
+            continue
+
+        chunk = audio[start_ms:end_ms]
+        chunk = chunk.set_frame_rate(16000).set_channels(1)
+
+        clip_name = f"clip_{i:06d}.wav"
+        clip_path = os.path.join(clips_dir, clip_name)
+        chunk.export(clip_path, format="wav")
+
+        metadata.append({"sentence": text, "path": clip_path})
+        
+    print(f"Writing metadata to {os.path.join(output_dir, 'metadata.csv')}")
+    with open(os.path.join(output_dir, 'metadata.csv'), "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["sentence", "path"])
         writer.writeheader()
         writer.writerows(metadata)
 
     print("Done! Dataset is ready.")
 
+def msBySubEdge(subEdge):
+    return (
+        subEdge.hours * 3600 + subEdge.minutes * 60 + subEdge.seconds
+    ) * 1000 + subEdge.milliseconds
 
 def prepare_dataset_by_uid(uid: str):
     dir = join(ROW_DATA_DIR, uid)
     if not exists(dir):
         return None
     files = [f for f in os.listdir(dir) if isfile(join(dir, f))]
-    csv_path = join(DATASET_DIR, f"{uid}.csv")
     audio_path = None
     srt_path = None
     for file in files:
@@ -98,7 +86,9 @@ def prepare_dataset_by_uid(uid: str):
     if audio_path is None or srt_path is None:
         print(f"Audio or SRT file not found for {uid}")
         return None
-    return prepare_dataset(audio_path, srt_path, csv_path)
+    output_dir = join(DATASET_DIR, f"{uid}")
+    os.makedirs(output_dir, exist_ok=True)
+    prepare_dataset(audio_path, srt_path, output_dir)
 
 
 def url_from_csv(path: str):

@@ -20,6 +20,8 @@ from transformers import (
 from .constants import DATASET_DIR, VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
 
 CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
+
+
 def remove_special_characters(batch):
     batch["sentence"] = [
         re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
@@ -27,11 +29,21 @@ def remove_special_characters(batch):
     ]
     return batch
 
+
 def train():
     print(f"Loading local dataset from {DATASET_DIR}...")
-    dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
-    print("Text Preprocessing")
+    # dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
 
+    dirs = [os.path.join(DATASET_DIR, uid) for uid in os.listdir(DATASET_DIR)]
+    all_datasets = [
+        load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"]
+        for d in dirs
+    ]
+    dataset = concatenate_datasets(all_datasets)
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+    print(f"Dataset size: {len(dataset)}")
+
+    print("Text Preprocessing")
     dataset = dataset.map(
         remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
     )
@@ -92,7 +104,11 @@ def train():
 
     def prepare_dataset(batch):
         # batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
-        batch["input_values"] = np.fromstring(batch["input_values"].strip("[]"), sep=" ", dtype=np.float32)
+        
+        audio = batch["audio"]
+        batch["input_values"] = processor(audio, sampling_rate=audio["sampling_rate"]).input_values[0]
+        batch["attention_mask"] = processor(audio, sampling_rate=audio["sampling_rate"]).attention_mask[0]
+
         batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
 
