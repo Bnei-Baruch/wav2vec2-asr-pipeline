@@ -43,7 +43,7 @@ def prepare_dataset(audio_path, srt_path, csv_path):
             print(f"too long: {sub.text} duration: {end_ms - start_ms}ms")
             continue
 
-        if end_ms - start_ms < 500 or sub.text.strip() == "":
+        if end_ms - start_ms < 1000 or sub.text.strip() == "":
             print(f"too short or empty: {sub.text} duration: {end_ms - start_ms}ms")
             continue
 
@@ -55,17 +55,17 @@ def prepare_dataset(audio_path, srt_path, csv_path):
         out = fe(samples, sampling_rate=16000, return_tensors="np")
 
         text = sub.text.replace("\n", " ").strip()
+        if not text:
+            print(f"empty text")
+            continue
+        
+        input_values = out["input_values"][0]
 
-        if text:
-            metadata.append({"sentence": text, "input_values": out["input_values"][0]})
-
-    print(f"Writing metadata to {csv_path}")
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["sentence", "input_values"])
-        writer.writeheader()
-        writer.writerows(metadata)
-
-    print("Done! Dataset is ready.")
+        if len(input_values) < 100:
+            print(f"too short: input_values length: {len(input_values)}")
+            continue
+        
+        metadata.append({"sentence": text, "input_values": input_values})
 
 
 def prepare_dataset_by_uid(uid: str):

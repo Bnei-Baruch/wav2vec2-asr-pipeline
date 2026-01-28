@@ -105,11 +105,14 @@ def train():
     eval_ds = split["test"]
 
     def prepare_dataset(batch):
+        batch["input_values"] = np.fromstring(
+            batch["input_values"].strip("[]"), sep=" ", dtype=np.float32
+        )
         batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
-    train_ds = train_ds.map(prepare_dataset, remove_columns=train_ds.column_names)
-    eval_ds = eval_ds.map(prepare_dataset, remove_columns=eval_ds.column_names)
+    train_ds = train_ds.map(prepare_dataset)
+    eval_ds = eval_ds.map(prepare_dataset)
 
     print("Create Data Collator")
 
