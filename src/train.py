@@ -20,16 +20,17 @@ from transformers import (
 from .constants import DATASET_DIR, VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
 
 CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
+def remove_special_characters(batch):
+    batch["sentence"] = [
+        re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
+        for s in batch["sentence"]
+    ]
+    return batch
+
 def train():
     print(f"Loading local dataset from {DATASET_DIR}...")
     dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
     print("Text Preprocessing")
-    def remove_special_characters(batch):
-        batch["sentence"] = [
-            re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
-            for s in batch["sentence"]
-        ]
-        return batch
 
     dataset = dataset.map(
         remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
@@ -90,8 +91,9 @@ def train():
     eval_ds = split["test"]
 
     def prepare_dataset(batch):
-        batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
-        batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
+        # batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
+        batch["input_values"] = np.fromstring(batch["input_values"].strip("[]"), sep=" ", dtype=np.float32)
+        batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
 
     train_ds = train_ds.map(prepare_dataset)
