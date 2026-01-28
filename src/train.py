@@ -35,8 +35,10 @@ def train():
         load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"]
         for d in dirs
     ]
-    dataset = concatenate_datasets(all_datasets)
+    dataset = load_dataset("csv", data_files=f"{LOCAL_DATA_DIR}/*.csv")["train"]
     print(f"Dataset: {dataset}")
+    print(dataset[0])
+    exit()
 
     print("Text Preprocessing")
     chars_to_ignore_regex = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
