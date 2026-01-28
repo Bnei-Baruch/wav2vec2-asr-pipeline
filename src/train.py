@@ -105,10 +105,6 @@ def train():
     eval_ds = split["test"]
 
     def prepare_dataset(batch):
-        audio = batch["audio"]
-        batch["input_values"] = processor(
-            audio["array"], sampling_rate=audio["sampling_rate"]
-        ).input_values[0]
         batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
