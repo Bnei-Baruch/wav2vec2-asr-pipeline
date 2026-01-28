@@ -25,6 +25,7 @@ MODEL_ID = "facebook/wav2vec2-xls-r-300m"
 LOCAL_DATA_DIR = "./dataset"
 OUTPUT_DIR = "./models/wav2vec2-xls-r-300m"
 VOCAB_PATH = "./vocab.json"
+CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
 
 
 def train():
@@ -32,14 +33,12 @@ def train():
     dataset = load_dataset("csv", data_files=f"{LOCAL_DATA_DIR}/*.csv")["train"]
     print(f"Dataset: {dataset}")
     print(dataset[0])
-    exit()
 
     print("Text Preprocessing")
-    chars_to_ignore_regex = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
 
     def remove_special_characters(batch):
         batch["sentence"] = [
-            re.sub(chars_to_ignore_regex, "", s).lower() if s is not None else ""
+            re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
             for s in batch["sentence"]
         ]
         return batch
