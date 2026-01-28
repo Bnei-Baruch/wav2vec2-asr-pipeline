@@ -96,18 +96,15 @@ def train():
         feature_extractor=feature_extractor, tokenizer=tokenizer
     )
 
-    print("Prepare Audio")
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
-
     print("Split train/eval")
     split = dataset.train_test_split(test_size=0.05, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
 
     def prepare_dataset(batch):
-        batch["input_values"] = np.fromstring(
-            batch["input_values"].strip("[]"), sep=" ", dtype=np.float32
-        )
+        #batch["input_values"] = np.fromstring(
+        #    batch["input_values"].strip("[]"), sep=" ", dtype=np.float32
+        #)
         batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
