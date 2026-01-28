@@ -49,11 +49,11 @@ def prepare_dataset(audio_path, srt_path, output_dir):
         clip_path = os.path.join(clips_dir, clip_name)
         chunk.export(clip_path, format="wav")
 
-        metadata.append({"sentence": text, "path": clip_path})
+        metadata.append({"sentence": text, "file_name": f"clips/{clip_name}"})
         
     print(f"Writing metadata to {os.path.join(output_dir, 'metadata.csv')}")
     with open(os.path.join(output_dir, 'metadata.csv'), "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["sentence", "path"])
+        writer = csv.DictWriter(f, fieldnames=["sentence", "file_name"])
         writer.writeheader()
         writer.writerows(metadata)
 

@@ -104,10 +104,12 @@ def train():
 
     def prepare_dataset(batch):
         # batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
-        
+
         audio = batch["audio"]
-        batch["input_values"] = processor(audio, sampling_rate=audio["sampling_rate"]).input_values[0]
-        batch["attention_mask"] = processor(audio, sampling_rate=audio["sampling_rate"]).attention_mask[0]
+        batch["input_values"] = processor(
+            audio["array"], sampling_rate=audio["sampling_rate"]
+        ).input_values[0]
+        # batch["attention_mask"] = processor(audio, sampling_rate=audio["sampling_rate"]).attention_mask[0]
 
         batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
