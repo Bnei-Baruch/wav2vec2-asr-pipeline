@@ -28,13 +28,7 @@ VOCAB_PATH = "./vocab.json"
 
 
 def train():
-    print("Load Dataset")
     print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
-    dirs = [os.path.join(LOCAL_DATA_DIR, uid) for uid in os.listdir(LOCAL_DATA_DIR)]
-    all_datasets = [
-        load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"]
-        for d in dirs
-    ]
     dataset = load_dataset("csv", data_files=f"{LOCAL_DATA_DIR}/*.csv")["train"]
     print(f"Dataset: {dataset}")
     print(dataset[0])
