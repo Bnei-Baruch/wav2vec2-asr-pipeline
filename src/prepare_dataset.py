@@ -58,14 +58,21 @@ def prepare_dataset(audio_path, srt_path, csv_path):
         if not text:
             print(f"empty text")
             continue
-        
+
         input_values = out["input_values"][0]
 
         if len(input_values) < 100:
             print(f"too short: input_values length: {len(input_values)}")
             continue
         
-        metadata.append({"sentence": text, "input_values": input_values})
+        metadata.append({"sentence": text, "input_values": input_values.tolist()})
+    print(f"Writing metadata to {csv_path}")
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["sentence", "input_values"])
+        writer.writeheader()
+        writer.writerows(metadata)
+
+    print("Done! Dataset is ready.")
 
 
 def prepare_dataset_by_uid(uid: str):
