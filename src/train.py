@@ -102,9 +102,7 @@ def train():
     eval_ds = split["test"]
 
     def prepare_dataset(batch):
-        #batch["input_values"] = np.fromstring(
-        #    batch["input_values"].strip("[]"), sep=" ", dtype=np.float32
-        #)
+        batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
         batch["labels"] = processor(text=batch["sentence"]).input_ids  # ← новый способ
         return batch
 
