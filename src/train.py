@@ -4,7 +4,6 @@ import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -18,22 +17,13 @@ from transformers import (
     TrainingArguments,
     Trainer,
 )
+from .constants import DATASET_DIR, VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
 
-MODEL_ID = "facebook/wav2vec2-xls-r-300m"
-# MODEL_ID = "facebook/mms-1b "
-# MODEL_ID = "facebook/wav2vec2-base"
-LOCAL_DATA_DIR = "./dataset"
-OUTPUT_DIR = "./models/wav2vec2-xls-r-300m"
-VOCAB_PATH = "./vocab.json"
 CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
-
-
 def train():
-    print(f"Loading local dataset from {LOCAL_DATA_DIR}...")
-    dataset = load_dataset("csv", data_files=f"{LOCAL_DATA_DIR}/*.csv")["train"]
-
+    print(f"Loading local dataset from {DATASET_DIR}...")
+    dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
     print("Text Preprocessing")
-
     def remove_special_characters(batch):
         batch["sentence"] = [
             re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
@@ -127,12 +117,11 @@ def train():
                 padding=self.padding,
                 return_tensors="pt",
             )
-            with self.processor.as_target_processor():
-                labels_batch = self.processor.tokenizer.pad(
-                    label_features,
-                    padding=self.padding,
-                    return_tensors="pt",
-                )
+            labels_batch = self.processor.tokenizer.pad(
+                label_features,
+                padding=self.padding,
+                return_tensors="pt",
+            )
 
             labels = labels_batch["input_ids"].masked_fill(
                 labels_batch.attention_mask.ne(1), -100
@@ -156,7 +145,7 @@ def train():
 
     print("Create Model")
     model = Wav2Vec2ForCTC.from_pretrained(
-        MODEL_ID,
+        BASE_MODEL_ID,
         attention_dropout=0.1,
         hidden_dropout=0.1,
         feat_proj_dropout=0.0,
@@ -170,7 +159,7 @@ def train():
 
     print("Create Trainer")
     training_args = TrainingArguments(
-        output_dir=OUTPUT_DIR,
+        output_dir=MODEL_DIR,
         group_by_length=True,
         per_device_train_batch_size=8,
         gradient_accumulation_steps=2,
