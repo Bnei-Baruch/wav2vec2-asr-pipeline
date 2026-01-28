@@ -1,0 +1,6 @@
+BASE_MODEL_ID = "facebook/wav2vec2-xls-r-300m"
+DATASET_DIR = "./dataset"
+MODEL_DIR = "./models"
+VOCAB_PATH = "./vocab.json"
+KENLM_MODEL_PATH = "./kenlm.arpa"
+ROW_DATA_DIR = "./row_data"

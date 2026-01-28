@@ -8,11 +8,9 @@ from transformers import (
     pipeline,
 )
 from pyctcdecode import build_ctcdecoder
+from constants import MODEL_DIR, VOCAB_PATH, KENLM_MODEL_PATH
 
-# MODEL_NAME = "facebook/wav2vec2-base-960h"
-MODEL_NAME = "./models/wav2vec2-xls-r-300m/checkpoint-79260"
-VOCAB_PATH = "./vocab.json"
-KENLM_MODEL_PATH = "./kenlm.arpa"
+MODEL_NAME = f"{MODEL_DIR}/checkpoint-79260"
 
 
 def main(audio_path):
@@ -41,7 +39,7 @@ def run_pipeline(audio_path):
 
     print(f"Vocab: {vocab}")
 
-    if False or os.path.exists(KENLM_MODEL_PATH):
+    if os.path.exists(KENLM_MODEL_PATH):
         decoder = build_ctcdecoder(
             labels=vocab,
             kenlm_model_path=KENLM_MODEL_PATH,
