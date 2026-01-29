@@ -1,6 +1,6 @@
 import os
 from datasets import concatenate_datasets, load_dataset
-import re 
+import re
 from .constants import DATASET_DIR
 
 CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
@@ -16,14 +16,23 @@ def remove_special_characters(batch):
 
 def load_dataset_from_dir():
     print(f"Loading local dataset from {DATASET_DIR}...")
-
-    dirs = [os.path.join(DATASET_DIR, uid) for uid in os.listdir(DATASET_DIR)]
-    all_datasets = [load_dataset("audiofolder", data_dir=d)["train"] for d in dirs]
-    dataset = concatenate_datasets(all_datasets)
+    datasets = []
+    for dir in os.listdir(DATASET_DIR):
+        if not os.path.isdir(os.path.join(DATASET_DIR, dir)):
+            print(f"Not a directory: {dir}")
+            continue
+        if not os.path.exists(os.path.join(DATASET_DIR, dir, "metadata.csv")):
+            print(f"No metadata.csv file found for {dir}")
+            continue
+        ds = load_dataset("audiofolder", data_dir=os.path.join(DATASET_DIR, dir))
+        datasets.append(ds["train"])
+    dataset = concatenate_datasets(datasets)
     print(f"Dataset size: {len(dataset)}")
-
-    print("Text Preprocessing")
     dataset = dataset.map(
-        remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
+        remove_special_characters,
+        batched=True,
+        batch_size=1000,
+        keep_in_memory=False,
+        num_proc=1,
     )
     return dataset
