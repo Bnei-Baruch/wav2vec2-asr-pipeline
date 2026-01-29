@@ -1,31 +1,55 @@
 import argparse
 import os
 import torch
+import librosa
 from transformers import (
     Wav2Vec2ProcessorWithLM,
     Wav2Vec2CTCTokenizer,
     Wav2Vec2FeatureExtractor,
+    Wav2Vec2Processor,
+    Wav2Vec2ForCTC,
     pipeline,
 )
 from pyctcdecode import build_ctcdecoder
 from .constants import MODEL_DIR, VOCAB_PATH, KENLM_MODEL_PATH
 
-MODEL_NAME = f"{MODEL_DIR}/checkpoint-2070"
+MODEL_NAME = f"{MODEL_DIR}/checkpoint-40020"
 
 
 def main(audio_path):
     print(f"Running pipeline with model {MODEL_NAME}")
     result = run_pipeline(audio_path)
+    print(f"Result: {result}")
     make_srt(result)
+    save_as_txt(result)
+
+def save_as_txt(result):
+    with open("text.txt", "w", encoding="utf-8") as f:
+        f.write(result["text"])
+    print(f"Transcription saved to text.txt")
+
+def run_pipeline_no_lm(audio_path):
+    processor = Wav2Vec2Processor.from_pretrained(MODEL_NAME)
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
+
+    audio, rate = librosa.load(audio_path, sr=16000)
+    input_values = processor(audio, sampling_rate=16000, return_tensors="pt").input_values
+
+    with torch.no_grad():
+        logits = model(input_values).logits
+
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.batch_decode(predicted_ids[0])
+    print(f"Transcription: {transcription}")
+    return transcription
 
 
 def run_pipeline(audio_path):
     if not os.path.exists(VOCAB_PATH):
         raise FileNotFoundError(f"Vocab file not found: {VOCAB_PATH}")
 
-    tokenizer = Wav2Vec2CTCTokenizer(
-        VOCAB_PATH, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
-    )
+    tokenizer = Wav2Vec2CTCTokenizer.from_pretrained(MODEL_NAME)
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
 
     vocab_dict = tokenizer.get_vocab()
     vocab = [k for k, v in sorted(vocab_dict.items(), key=lambda item: item[1])]
@@ -64,14 +88,13 @@ def run_pipeline(audio_path):
 
     asr_pipeline = pipeline(
         "automatic-speech-recognition",
-        model=MODEL_NAME,
+        model=model,
         feature_extractor=processor_with_lm.feature_extractor,
         tokenizer=processor_with_lm.tokenizer,
-        decoder=decoder,
         device=0 if torch.cuda.is_available() else -1,
     )
 
-    result = asr_pipeline(audio_path, return_timestamps="word", batch_size=16)
+    result = asr_pipeline(audio_path, return_timestamps="word", batch_size=16, chunk_length_s=30, stride_length_s=5)
 
     print(f"\n\n\nResult text: \n{result['text']}\n\n\n")
     return result

@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 import numpy as np
@@ -35,12 +34,8 @@ def train():
     # dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
 
     dirs = [os.path.join(DATASET_DIR, uid) for uid in os.listdir(DATASET_DIR)]
-    all_datasets = [
-        load_dataset("audiofolder", data_dir=d, keep_in_memory=False)["train"]
-        for d in dirs
-    ]
+    all_datasets = [load_dataset("audiofolder", data_dir=d)["train"] for d in dirs]
     dataset = concatenate_datasets(all_datasets)
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
     print(f"Dataset size: {len(dataset)}")
 
     print("Text Preprocessing")
@@ -97,25 +92,45 @@ def train():
         feature_extractor=feature_extractor, tokenizer=tokenizer
     )
 
+    print("Prepare Audio")
+    #dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+
     print("Split train/eval")
     split = dataset.train_test_split(test_size=0.05, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
 
+    print(f"Train dataset size: {len(train_ds)}")
+    print(f"Eval dataset size: {len(eval_ds)}")
+
     def prepare_dataset(batch):
-        # batch["input_values"] = np.array(json.loads(batch["input_values"]), dtype=np.float32)
-
         audio = batch["audio"]
-        batch["input_values"] = processor(
-            audio["array"], sampling_rate=audio["sampling_rate"]
-        ).input_values[0]
-        # batch["attention_mask"] = processor(audio, sampling_rate=audio["sampling_rate"]).attention_mask[0]
-
+        batch["input_values"] = [
+            processor(a["array"], sampling_rate=a["sampling_rate"]).input_values[0]
+            for a in audio
+        ]
         batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
 
-    train_ds = train_ds.map(prepare_dataset)
-    eval_ds = eval_ds.map(prepare_dataset)
+    print(f"Dataset column names: {dataset.column_names}")
+    drop_columns = [c for c in train_ds.column_names if c not in ["audio", "sentence"]]
+    print(f"Drop columns: {drop_columns}")
+    train_ds = train_ds.map(
+        prepare_dataset,
+        remove_columns=drop_columns,
+        keep_in_memory=False,
+        batch_size=100,
+        batched=True,
+        num_proc=1,
+    )
+    eval_ds = eval_ds.map(
+        prepare_dataset,
+        remove_columns=drop_columns,
+        keep_in_memory=False,
+        batch_size=100,
+        batched=True,
+        num_proc=1,
+    )
 
     print("Create Data Collator")
 
