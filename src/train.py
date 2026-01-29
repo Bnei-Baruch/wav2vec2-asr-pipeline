@@ -1,12 +1,10 @@
 import json
 import os
-import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+import sys
+from dataclasses import dataclass
+from typing import Dict, List, Union
 import numpy as np
 import torch
-import torch.distributed as dist
-from datasets import concatenate_datasets, load_dataset, Audio
 import evaluate
 from transformers import (
     Wav2Vec2CTCTokenizer,
@@ -16,66 +14,16 @@ from transformers import (
     TrainingArguments,
     Trainer,
 )
-from .constants import DATASET_DIR, VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
-
-CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
-
-
-def remove_special_characters(batch):
-    batch["sentence"] = [
-        re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
-        for s in batch["sentence"]
-    ]
-    return batch
+from .utils import load_dataset_from_dir
+from .constants import VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
 
 
 def train():
-    print(f"Loading local dataset from {DATASET_DIR}...")
-    # dataset = load_dataset("csv", data_files=f"{DATASET_DIR}/*.csv")["train"]
-
-    dirs = [os.path.join(DATASET_DIR, uid) for uid in os.listdir(DATASET_DIR)]
-    all_datasets = [load_dataset("audiofolder", data_dir=d)["train"] for d in dirs]
-    dataset = concatenate_datasets(all_datasets)
-    print(f"Dataset size: {len(dataset)}")
-
     print("Text Preprocessing")
-    dataset = dataset.map(
-        remove_special_characters, batched=True, batch_size=1000, keep_in_memory=False
-    )
+    dataset = load_dataset_from_dir()
+
     if not os.path.exists(VOCAB_PATH):
-        print("Create Vocabulary")
-
-        def extract_all_chars(batch):
-            all_text = " ".join(batch["sentence"])
-            vocab = list(set(all_text))
-            return {"vocab": [vocab]}
-
-        print("Extract All Chars")
-        vocabs = dataset.map(
-            extract_all_chars,
-            batched=True,
-            batch_size=1000,
-            keep_in_memory=False,
-            remove_columns=dataset.column_names,
-        )
-
-        print("Create Vocab Dict")
-        vocab_set = set()
-        for v in vocabs["vocab"]:
-            vocab_set.update(v)
-        vocab_list = sorted(vocab_set)
-
-        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-        if " " in vocab_dict:
-            vocab_dict["|"] = vocab_dict[" "]
-            del vocab_dict[" "]
-        vocab_dict["[UNK]"] = len(vocab_dict)
-        vocab_dict["[PAD]"] = len(vocab_dict)
-
-        with open(VOCAB_PATH, "w") as vocab_file:
-            json.dump(vocab_dict, vocab_file)
-    else:
-        print(f"Using existing vocab at {VOCAB_PATH}")
+        exit(f"Vocab file not found: {VOCAB_PATH}")
 
     print("Create Processor")
     tokenizer = Wav2Vec2CTCTokenizer(
@@ -93,9 +41,6 @@ def train():
     )
 
     print("Prepare Audio")
-    #dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
-
-    print("Split train/eval")
     split = dataset.train_test_split(test_size=0.05, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
