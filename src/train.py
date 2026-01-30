@@ -57,20 +57,20 @@ def train():
         batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
 
-    print(f"Dataset column names: {dataset.column_names}")
-    drop_columns = [c for c in train_ds.column_names if c not in ["audio", "sentence"]]
-    print(f"Drop columns: {drop_columns}")
+
+    print("Prepare Train Dataset")
     train_ds = train_ds.map(
         prepare_dataset,
-        remove_columns=drop_columns,
+        remove_columns=["audio", "sentence"],
         keep_in_memory=False,
         batch_size=100,
         batched=True,
         num_proc=1,
     )
+    print("Prepare Eval Dataset")
     eval_ds = eval_ds.map(
         prepare_dataset,
-        remove_columns=drop_columns,
+        remove_columns=["audio", "sentence"],
         keep_in_memory=False,
         batch_size=100,
         batched=True,

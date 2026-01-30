@@ -7,13 +7,16 @@ import pysrt
 from pydub import AudioSegment
 from tqdm import tqdm
 import argparse
-import numpy as np
-from transformers import Wav2Vec2FeatureExtractor
-from .constants import ROW_DATA_DIR, DATASET_DIR
+from transformers import (
+    Wav2Vec2CTCTokenizer,
+    Wav2Vec2Processor,
+    Wav2Vec2FeatureExtractor,
+)
+from .constants import ROW_DATA_DIR, DATASET_DIR, VOCAB_PATH
+from .utils import load_dataset_from_dir
 
 
-
-def prepare_dataset(audio_path, srt_path, output_dir):
+def prepare_data(audio_path, srt_path, output_dir):
     clips_dir = os.path.join(output_dir, "clips")
     os.makedirs(clips_dir, exist_ok=True)
     print(f"Loading audio: {audio_path}")
@@ -50,21 +53,25 @@ def prepare_dataset(audio_path, srt_path, output_dir):
         chunk.export(clip_path, format="wav")
 
         metadata.append({"sentence": text, "file_name": f"clips/{clip_name}"})
-        
+
     print(f"Writing metadata to {os.path.join(output_dir, 'metadata.csv')}")
-    with open(os.path.join(output_dir, 'metadata.csv'), "w", newline="", encoding="utf-8") as f:
+    with open(
+        os.path.join(output_dir, "metadata.csv"), "w", newline="", encoding="utf-8"
+    ) as f:
         writer = csv.DictWriter(f, fieldnames=["sentence", "file_name"])
         writer.writeheader()
         writer.writerows(metadata)
 
     print("Done! Dataset is ready.")
 
+
 def msBySubEdge(subEdge):
     return (
         subEdge.hours * 3600 + subEdge.minutes * 60 + subEdge.seconds
     ) * 1000 + subEdge.milliseconds
 
-def prepare_dataset_by_uid(uid: str):
+
+def prepare_data_by_uid(uid: str):
     dir = join(ROW_DATA_DIR, uid)
     if not exists(dir):
         return None
@@ -88,7 +95,7 @@ def prepare_dataset_by_uid(uid: str):
         return None
     output_dir = join(DATASET_DIR, f"{uid}")
     os.makedirs(output_dir, exist_ok=True)
-    prepare_dataset(audio_path, srt_path, output_dir)
+    prepare_data(audio_path, srt_path, output_dir)
 
 
 def url_from_csv(path: str):
@@ -110,14 +117,81 @@ def download_audio(url: str, dir: str):
     return audio_path
 
 
+def data_to_dataset():
+    ds = load_dataset_from_dir()
+
+    if not os.path.exists(VOCAB_PATH):
+        exit(f"Vocab file not found: {VOCAB_PATH}")
+
+    print("Create Processor")
+    tokenizer = Wav2Vec2CTCTokenizer(
+        VOCAB_PATH, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|"
+    )
+    feature_extractor = Wav2Vec2FeatureExtractor(
+        feature_size=1,
+        sampling_rate=16000,
+        padding_value=0.0,
+        do_normalize=True,
+        return_attention_mask=True,
+    )
+    processor = Wav2Vec2Processor(
+        feature_extractor=feature_extractor, tokenizer=tokenizer
+    )
+
+    print("Prepare Audio")
+    split = ds.train_test_split(test_size=0.05, seed=42)
+    train_ds = split["train"]
+    eval_ds = split["test"]
+
+    print(f"Train dataset size: {len(train_ds)}")
+    print(f"Eval dataset size: {len(eval_ds)}")
+
+    def prepare_dataset(batch):
+        audio = batch["audio"]
+        batch["input_values"] = [
+            processor(a["array"], sampling_rate=a["sampling_rate"]).input_values[0]
+            for a in audio
+        ]
+        batch["labels"] = processor(text=batch["sentence"]).input_ids
+        return batch
+
+    print("Prepare Train Dataset")
+    train_ds = train_ds.map(
+        prepare_dataset,
+        remove_columns=["audio", "sentence"],
+        keep_in_memory=False,
+        batch_size=100,
+        batched=True,
+        num_proc=1,
+    )
+    train_ds.save_to_disk("./train")
+
+    print("Prepare Eval Dataset")
+    eval_ds = eval_ds.map(
+        prepare_dataset,
+        remove_columns=["audio", "sentence"],
+        keep_in_memory=False,
+        batch_size=100,
+        batched=True,
+        num_proc=1,
+    )
+    eval_ds.save_to_disk("./eval")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert Audio+SRT to HuggingFace AudioFolder dataset"
     )
     parser.add_argument("--uid", required=False, help="Content unit uid")
+    parser.add_argument("--skip-prepare", action="store_true", help="Skip prepare data")
     args = parser.parse_args()
+
+
+    if args.skip_prepare:
+        data_to_dataset()
+        exit()
+
     os.makedirs(DATASET_DIR, exist_ok=True)
-    # prepare_dataset_by_uid(args.uid)
     dirs = [
         d
         for d in os.listdir(ROW_DATA_DIR)
@@ -128,4 +202,5 @@ if __name__ == "__main__":
         if os.path.exists(os.path.join(DATASET_DIR, dir)):
             print(f"Dataset already exists for {dir}")
             continue
-        prepare_dataset_by_uid(dir)
+        prepare_data_by_uid(dir)
+    data_to_dataset()
