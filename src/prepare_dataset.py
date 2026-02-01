@@ -185,9 +185,10 @@ if __name__ == "__main__":
     parser.add_argument("--uid", required=False, help="Content unit uid")
     parser.add_argument("--skip-prepare", action="store_true", help="Skip prepare data")
     args = parser.parse_args()
-
+    print(f"Args: {args}")
 
     if args.skip_prepare:
+        print("Skipping prepare data")
         data_to_dataset()
         exit()
 
