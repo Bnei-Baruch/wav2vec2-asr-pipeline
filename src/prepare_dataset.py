@@ -140,11 +140,11 @@ def data_to_dataset():
 
     print("Prepare Audio")
     split = ds.train_test_split(test_size=0.05, seed=42)
-    train_ds = split["train"]
     eval_ds = split["test"]
+    train_ds = split["train"]
 
-    print(f"Train dataset size: {len(train_ds)}")
     print(f"Eval dataset size: {len(eval_ds)}")
+    print(f"Train dataset size: {len(train_ds)}")
 
     def prepare_dataset(batch):
         audio = batch["audio"]
@@ -154,6 +154,17 @@ def data_to_dataset():
         ]
         batch["labels"] = processor(text=batch["sentence"]).input_ids
         return batch
+
+    print("Prepare Eval Dataset")
+    eval_ds = eval_ds.map(
+        prepare_dataset,
+        remove_columns=["audio", "sentence"],
+        keep_in_memory=False,
+        batch_size=100,
+        batched=True,
+        num_proc=1,
+    )
+    eval_ds.save_to_disk("./eval")
 
     print("Prepare Train Dataset")
     train_ds = train_ds.map(
@@ -166,16 +177,6 @@ def data_to_dataset():
     )
     train_ds.save_to_disk("./train")
 
-    print("Prepare Eval Dataset")
-    eval_ds = eval_ds.map(
-        prepare_dataset,
-        remove_columns=["audio", "sentence"],
-        keep_in_memory=False,
-        batch_size=100,
-        batched=True,
-        num_proc=1,
-    )
-    eval_ds.save_to_disk("./eval")
 
 
 if __name__ == "__main__":
