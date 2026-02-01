@@ -6,6 +6,7 @@ from typing import Dict, List, Union
 import numpy as np
 import torch
 import evaluate
+from datasets import load_from_disk
 from transformers import (
     Wav2Vec2CTCTokenizer,
     Wav2Vec2FeatureExtractor,
@@ -14,13 +15,11 @@ from transformers import (
     TrainingArguments,
     Trainer,
 )
-from .utils import load_dataset_from_dir
 from .constants import VOCAB_PATH, BASE_MODEL_ID, MODEL_DIR
 
 
 def train():
     print("Text Preprocessing")
-    dataset = load_dataset_from_dir()
 
     if not os.path.exists(VOCAB_PATH):
         exit(f"Vocab file not found: {VOCAB_PATH}")
@@ -41,43 +40,13 @@ def train():
     )
 
     print("Prepare Audio")
-    split = dataset.train_test_split(test_size=0.05, seed=42)
-    train_ds = split["train"]
-    eval_ds = split["test"]
-
-    print(f"Train dataset size: {len(train_ds)}")
+    eval_ds = load_from_disk("./eval")
     print(f"Eval dataset size: {len(eval_ds)}")
-
-    def prepare_dataset(batch):
-        audio = batch["audio"]
-        batch["input_values"] = [
-            processor(a["array"], sampling_rate=a["sampling_rate"]).input_values[0]
-            for a in audio
-        ]
-        batch["labels"] = processor(text=batch["sentence"]).input_ids
-        return batch
-
-
-    print("Prepare Train Dataset")
-    train_ds = train_ds.map(
-        prepare_dataset,
-        remove_columns=["audio", "sentence"],
-        keep_in_memory=False,
-        batch_size=100,
-        batched=True,
-        num_proc=1,
-    )
-    print("Prepare Eval Dataset")
-    eval_ds = eval_ds.map(
-        prepare_dataset,
-        remove_columns=["audio", "sentence"],
-        keep_in_memory=False,
-        batch_size=100,
-        batched=True,
-        num_proc=1,
-    )
-
-    print("Create Data Collator")
+    print(eval_ds.column_names)
+    
+    train_ds = load_from_disk("./train")
+    print(f"Train dataset size: {len(train_ds)}")
+    print(train_ds.column_names)
 
     @dataclass
     class DataCollatorCTCWithPadding:
