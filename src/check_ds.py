@@ -8,13 +8,6 @@ from datasets import load_from_disk
 from .constants import VOCAB_PATH
 
 
-def pick_text_col(cols):
-    for c in ["transcription", "text", "sentence", "transcript", "labels_text"]:
-        if c in cols:
-            return c
-    raise ValueError(f"Не найден текстовый столбец. Есть: {cols}")
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--max_print", type=int, default=20)
@@ -27,9 +20,9 @@ def main():
     if missing:
             raise ValueError(f"Нет нужных столбцов: {sorted(missing)}. Есть: {cols}")
 
-    text_col = pick_text_col(cols)
-
-    vocab = json.load(VOCAB_PATH)
+    with open(VOCAB_PATH, "r", encoding="utf-8") as f:
+        vocab = json.load(f)
+    id2tok = {v: k for k, v in vocab.items()}
 
     # Разрешенные символы: все токены, кроме спецтокенов вида [XXX]
     allowed = set()
@@ -41,9 +34,7 @@ def main():
     n = len(ds)
     empty_text = 0
     short_text = 0
-    bad_audio = 0
-
-    sample_rates = []
+    bad_input_values = 0
     durations = []
     text_lens = []
     cps = []  # chars per second
@@ -54,13 +45,18 @@ def main():
     text_counter = Counter()
 
     for i, row in enumerate(ds):
-        txt = row[text_col]
-        if txt is None:
-            txt = ""
-        txt = str(txt)
-
-        # Для CTC обычно пробел -> "|"
-        txt_for_vocab = txt.replace(" ", "|")
+        # Декодируем текст из label ids.
+        label_ids = row["labels"]
+        txt_tokens = []
+        for token_id in label_ids:
+            tok = id2tok.get(int(token_id))
+            if tok is None:
+                continue
+            if tok.startswith("[") and tok.endswith("]"):
+                continue
+            txt_tokens.append(tok)
+        txt_for_vocab = "".join(txt_tokens)
+        txt = txt_for_vocab.replace("|", " ")
 
         text_counter[txt] += 1
         if len(txt.strip()) == 0:
@@ -76,17 +72,14 @@ def main():
             if len(oov_sample_ids) < args.max_print:
                 oov_sample_ids.append(i)
 
-        # Audio stats
+        # Input stats
         try:
-            audio = row["audio"]
-            arr = np.asarray(audio["array"], dtype=np.float32)
-            sr = int(audio["sampling_rate"])
-            dur = len(arr) / sr if sr > 0 else 0.0
+            input_values = np.asarray(row["input_values"], dtype=np.float32)
+            dur = len(input_values) / 16000.0
         except Exception:
-            bad_audio += 1
+            bad_input_values += 1
             continue
 
-        sample_rates.append(sr)
         durations.append(dur)
         text_lens.append(len(txt))
         if dur > 0:
@@ -108,14 +101,13 @@ def main():
 
     print("=== DATASET QC ===")
     print(f"rows: {n}")
-    print(f"text column: {text_col}")
-    print(f"bad audio rows: {bad_audio}")
+    print("text source: decoded from labels")
+    print(f"bad input_values rows: {bad_input_values}")
     print(f"empty text rows: {empty_text} ({empty_text/n:.2%})")
     print(f"very short text rows (1-2 chars): {short_text} ({short_text/n:.2%})")
 
-    print("\n--- Audio ---")
-    sr_counts = Counter(sample_rates)
-    print(f"sample rates: {dict(sr_counts)}")
+    print("\n--- Input ---")
+    print("assumed sample_rate: 16000")
     print(
         f"duration sec: min={durs.min():.2f} p50={np.percentile(durs,50):.2f} p95={np.percentile(durs,95):.2f} max={durs.max():.2f}"
     )
