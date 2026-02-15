@@ -13,7 +13,7 @@ from transformers import (
 from pyctcdecode import build_ctcdecoder
 from .constants import MODEL_DIR, VOCAB_PATH, KENLM_MODEL_PATH
 
-MODEL_NAME = f"{MODEL_DIR}/checkpoint-40020"
+MODEL_NAME = f"{MODEL_DIR}/checkpoint-302700"
 
 
 def main(audio_path):
@@ -45,9 +45,6 @@ def run_pipeline_no_lm(audio_path):
 
 
 def run_pipeline(audio_path):
-    if not os.path.exists(VOCAB_PATH):
-        raise FileNotFoundError(f"Vocab file not found: {VOCAB_PATH}")
-
     tokenizer = Wav2Vec2CTCTokenizer.from_pretrained(MODEL_NAME)
     model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
 
