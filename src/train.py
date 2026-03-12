@@ -92,9 +92,13 @@ def train():
     wer_metric = evaluate.load("wer")
     print(f"evaluate.load('wer'): {time.perf_counter() - t0:.2f}s")
 
+    def preprocess_logits_for_metrics(logits, labels):
+        if isinstance(logits, tuple):
+            logits = logits[0]
+        return logits.argmax(dim=-1)
+
     def compute_metrics(pred):
-        pred_logits = pred.predictions
-        pred_ids = np.argmax(pred_logits, axis=-1)
+        pred_ids = pred.predictions
         pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
         pred_str = processor.batch_decode(pred_ids)
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
@@ -161,6 +165,7 @@ def train():
         data_collator=data_collator,
         args=training_args,
         compute_metrics=compute_metrics,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
         tokenizer=processor,
