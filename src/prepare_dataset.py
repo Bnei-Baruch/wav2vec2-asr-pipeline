@@ -47,7 +47,7 @@ def prepare_data(audio_path, srt_path, output_dir):
             print(f"too long: {sub.text} duration: {end_ms - start_ms}ms")
             continue
 
-        if end_ms - start_ms < 1000:
+        if end_ms - start_ms < 300:
             print(f"too short: {sub.text} duration: {end_ms - start_ms}ms")
             continue
 
