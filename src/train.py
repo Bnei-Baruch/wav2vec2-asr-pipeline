@@ -125,7 +125,7 @@ def train():
     t0 = time.perf_counter()
     training_args = TrainingArguments(
         output_dir=MODEL_DIR,
-        group_by_length=False,
+        group_by_length=True,
         per_device_train_batch_size=8,
         gradient_accumulation_steps=2,
         eval_strategy="steps",
@@ -137,13 +137,14 @@ def train():
         save_steps=2000,
         load_best_model_at_end=True,
         metric_for_best_model="wer",
+        greater_is_better=False,
         logging_steps=500,
         learning_rate=2e-4,
         warmup_steps=100,
         save_total_limit=2,
         dataloader_num_workers=0,
         dataloader_pin_memory=False,
-        ddp_find_unused_parameters=False,
+        ddp_find_unused_parameters=False
     )
     print(f"TrainingArguments(...): {time.perf_counter() - t0:.2f}s")
 
