@@ -1,17 +1,6 @@
 import os
 from datasets import concatenate_datasets, load_dataset
-import re
 from .constants import DATASET_DIR
-
-CHARS_TO_IGNORE_REGEX = r'[\,\?\.\!\-\;\:"\“\%\‘\”\]]'
-
-
-def remove_special_characters(batch):
-    batch["sentence"] = [
-        re.sub(CHARS_TO_IGNORE_REGEX, "", s).lower() if s is not None else ""
-        for s in batch["sentence"]
-    ]
-    return batch
 
 
 def load_dataset_from_dir():
@@ -28,11 +17,4 @@ def load_dataset_from_dir():
         datasets.append(ds["train"])
     dataset = concatenate_datasets(datasets)
     print(f"Dataset size: {len(dataset)}")
-    dataset = dataset.map(
-        remove_special_characters,
-        batched=True,
-        batch_size=1000,
-        keep_in_memory=False,
-        num_proc=1,
-    )
     return dataset
