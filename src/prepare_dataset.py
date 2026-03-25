@@ -184,13 +184,14 @@ def data_to_dataset():
     train_ds.save_to_disk("./train")
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert Audio+SRT to HuggingFace AudioFolder dataset"
     )
     parser.add_argument("--uid", required=False, help="Content unit uid")
     parser.add_argument("--skip-prepare", action="store_true", help="Skip prepare data")
+    parser.add_argument("--start", type=int, default=0, help="Start index")
+    parser.add_argument("--end", type=int, default=None, help="End index")
     args = parser.parse_args()
     print(f"Args: {args}")
 
@@ -200,6 +201,11 @@ if __name__ == "__main__":
         exit()
 
     os.makedirs(DATASET_DIR, exist_ok=True)
+
+    dir_list = os.listdir(ROW_DATA_DIR)
+    if args.end is not None:
+        dir_list = dir_list[args.start : args.end]
+        
     dirs = [
         d
         for d in os.listdir(ROW_DATA_DIR)
