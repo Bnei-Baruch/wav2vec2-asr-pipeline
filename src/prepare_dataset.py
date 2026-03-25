@@ -1,5 +1,6 @@
 import os
 import csv
+import re
 from os.path import isfile, join, exists
 import time
 import urllib.request
@@ -32,7 +33,12 @@ def prepare_data(audio_path, srt_path, output_dir):
     for i, sub in enumerate(tqdm(subs)):
         start_ms = msBySubEdge(sub.start)
         end_ms = msBySubEdge(sub.end)
-        text = sub.text.replace("\n", " ").strip()
+        
+        # Clean text for Hebrew
+        text = sub.text.replace("\n", " ")
+        text = re.sub(r'[^א-ת\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        
         if not text:
             print(f"empty text")
             continue
