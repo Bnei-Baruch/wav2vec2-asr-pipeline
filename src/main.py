@@ -86,7 +86,7 @@ def run_pipeline(audio_path):
     asr_pipeline = pipeline(
         "automatic-speech-recognition",
         model=model,
-        tokenizer=processor_with_lm,
+        tokenizer=processor_with_lm.tokenizer,
         feature_extractor=processor_with_lm.feature_extractor,
         device=0 if torch.cuda.is_available() else -1,
     )
