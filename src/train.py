@@ -118,7 +118,7 @@ def train():
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
     )
-    model.freeze_feature_extractor()
+    model.freeze_feature_encoder()
     print(f"from_pretrained(model): {time.perf_counter() - t0:.2f}s")
 
     print("Create Trainer")
@@ -133,6 +133,7 @@ def train():
         num_train_epochs=30,
         fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         load_best_model_at_end=True,
         metric_for_best_model="wer",
         greater_is_better=False,
@@ -167,7 +168,7 @@ def train():
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=processor,
+        processing_class=processor,
     )
     print(f"Trainer(...): {time.perf_counter() - t0:.2f}s")
 
