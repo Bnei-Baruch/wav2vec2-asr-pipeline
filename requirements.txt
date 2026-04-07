@@ -12,3 +12,6 @@ fsspec
 librosa
 soundfile
 tensorboard
+transformers>=4.39
+datasets
+jiwer
