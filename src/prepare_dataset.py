@@ -4,6 +4,7 @@ import re
 from os.path import isfile, join, exists
 import time
 import urllib.request
+import numpy as np
 import pysrt
 from pydub import AudioSegment
 from tqdm import tqdm
@@ -154,12 +155,30 @@ def data_to_dataset():
 
     def prepare_dataset(batch):
         audio = batch["audio"]
-        batch["input_values"] = [
-            processor(a["array"], sampling_rate=a["sampling_rate"]).input_values[0]
-            for a in audio
-        ]
-        batch["labels"] = processor(text=batch["sentence"]).input_ids
+        input_values_list = []
+        labels_list = []
+        for a, sentence in zip(audio, batch["sentence"]):
+            iv = processor(a["array"], sampling_rate=a["sampling_rate"]).input_values[0]
+            lb = processor(text=sentence).input_ids
+
+            if len(lb) == 0:
+                print(f"[SKIP] empty labels for: '{sentence}'")
+                continue
+            if np.isnan(np.array(iv)).any():
+                print(f"[SKIP] NaN in input_values for: '{sentence}'")
+                continue
+            input_frames = len(iv) // 320
+            if input_frames < len(lb):
+                print(f"[SKIP] label({len(lb)}) > frames({input_frames}) for: '{sentence}'")
+                continue
+
+            input_values_list.append(iv)
+            labels_list.append(lb)
+
+        batch["input_values"] = input_values_list
+        batch["labels"] = labels_list
         return batch
+
 
     print("Prepare Eval Dataset")
     eval_ds = eval_ds.map(

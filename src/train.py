@@ -121,6 +121,16 @@ def train():
     model.freeze_feature_encoder()
     print(f"from_pretrained(model): {time.perf_counter() - t0:.2f}s")
 
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    print(f"Trainable params: {trainable:,} / {total:,} ({100*trainable/total:.1f}%)")
+
+    sample = train_ds[0]
+    iv = np.array(sample["input_values"])
+    lb = np.array(sample["labels"])
+    print(f"Sample input_values: shape={iv.shape}, min={iv.min():.4f}, max={iv.max():.4f}, nan={np.isnan(iv).sum()}")
+    print(f"Sample labels: {lb[:20]} ... len={len(lb)}")
+
     print("Create Trainer")
     t0 = time.perf_counter()
     training_args = TrainingArguments(
@@ -147,10 +157,11 @@ def train():
     )
     print(f"TrainingArguments(...): {time.perf_counter() - t0:.2f}s")
 
-    class StartupTimingCallback(TrainerCallback):
+    class DiagCallback(TrainerCallback):
         def __init__(self, t_train_called: float):
             self.t_train_called = t_train_called
             self._printed_first_step = False
+            self._diag_done = False
 
         def on_step_begin(self, args, state, control, **kwargs):
             if not self._printed_first_step and state.global_step == 0:
@@ -158,6 +169,24 @@ def train():
                 print(
                     f"Time to first train step: {time.perf_counter() - self.t_train_called:.2f}s"
                 )
+
+        def on_log(self, args, state, control, logs=None, model=None, **kwargs):
+            if self._diag_done or logs is None:
+                return
+            self._diag_done = True
+            loss_val = logs.get("loss")
+            grad_val = logs.get("grad_norm")
+            print(f"[DIAG] First log — loss={loss_val}, grad_norm={grad_val}")
+            if loss_val is not None and (np.isnan(loss_val) or np.isinf(loss_val)):
+                print("[DIAG] WARNING: loss is nan/inf — CTC likely got invalid inputs")
+            if grad_val is not None and grad_val == 0.0:
+                print("[DIAG] WARNING: grad_norm=0 — gradients not flowing")
+                if model is not None:
+                    for name, p in model.named_parameters():
+                        if p.requires_grad and p.grad is not None:
+                            print(f"  {name}: grad_norm={p.grad.norm().item():.6f}")
+                        elif p.requires_grad:
+                            print(f"  {name}: grad=None")
 
     t0 = time.perf_counter()
     trainer = Trainer(
@@ -174,7 +203,7 @@ def train():
 
     print("Starting training...")
     t_train_called = time.perf_counter()
-    trainer.add_callback(StartupTimingCallback(t_train_called))
+    trainer.add_callback(DiagCallback(t_train_called))
     trainer.train()
 
 
