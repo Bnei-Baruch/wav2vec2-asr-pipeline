@@ -2,6 +2,7 @@ __pycache__
 
 .idea/
 audio.mp3
+audio.mp4
 
 
 .env
@@ -10,3 +11,4 @@ dataset*/
 row_data*/
 .DS_Store
 kenlm.arpa
+audio.srt
