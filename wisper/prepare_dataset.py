@@ -179,7 +179,7 @@ def data_to_dataset():
 
     cols = train_ds.column_names
     total = len(train_ds)
-    n_parts = 3
+    n_parts = 5
     part_size = total // n_parts
 
     print(f"Preparing train dataset in {n_parts} parts ({part_size}+ samples each)...")
