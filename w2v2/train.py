@@ -83,6 +83,16 @@ def train():
                 labels_batch.attention_mask.ne(1), -100
             )
             batch["labels"] = labels
+
+            input_lengths = batch["input_values"].shape[1] // 320
+            label_lengths = (labels != -100).sum(dim=1)
+            valid = label_lengths < input_lengths
+            if not valid.all():
+                batch["input_values"] = batch["input_values"][valid]
+                batch["labels"] = batch["labels"][valid]
+                if "attention_mask" in batch:
+                    batch["attention_mask"] = batch["attention_mask"][valid]
+
             return batch
 
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
