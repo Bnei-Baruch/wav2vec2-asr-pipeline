@@ -34,12 +34,12 @@ def prepare_data(audio_path, srt_path, output_dir):
     for i, sub in enumerate(tqdm(subs)):
         start_ms = msBySubEdge(sub.start)
         end_ms = msBySubEdge(sub.end)
-        
+
         # Clean text for Hebrew
         text = sub.text.replace("\n", " ")
-        text = re.sub(r'[^א-ת\s]', '', text)
-        text = re.sub(r'\s+', ' ', text).strip()
-        
+        text = re.sub(r"[^א-ת\s]", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
+
         if not text:
             print(f"empty text")
             continue
@@ -169,7 +169,9 @@ def data_to_dataset():
                 continue
             input_frames = len(iv) // 320
             if input_frames < len(lb):
-                print(f"[SKIP] label({len(lb)}) > frames({input_frames}) for: '{sentence}'")
+                print(
+                    f"[SKIP] label({len(lb)}) > frames({input_frames}) for: '{sentence}'"
+                )
                 continue
 
             input_values_list.append(iv)
@@ -178,7 +180,6 @@ def data_to_dataset():
         batch["input_values"] = input_values_list
         batch["labels"] = labels_list
         return batch
-
 
     print("Prepare Eval Dataset")
     eval_ds = eval_ds.map(
@@ -208,7 +209,12 @@ if __name__ == "__main__":
         description="Convert Audio+SRT to HuggingFace AudioFolder dataset"
     )
     parser.add_argument("--uid", required=False, help="Content unit uid")
-    parser.add_argument("--skip-prepare", action="store_true", help="Skip prepare data")
+    parser.add_argument(
+        "--skip-prepare",
+        default=True,
+        action="store_true",
+        help="Skip prepare data",
+    )
     parser.add_argument("--start", type=int, default=0, help="Start index")
     parser.add_argument("--end", type=int, default=None, help="End index")
     args = parser.parse_args()
@@ -224,7 +230,7 @@ if __name__ == "__main__":
     dir_list = os.listdir(ROW_DATA_DIR)
     if args.end is not None:
         dir_list = dir_list[args.start : args.end]
-        
+
     dirs = [
         d
         for d in os.listdir(ROW_DATA_DIR)
