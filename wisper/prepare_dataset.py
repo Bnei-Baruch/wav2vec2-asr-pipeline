@@ -39,8 +39,8 @@ def prepare_data(audio_path, srt_path, output_dir):
         end_ms = ms_by_sub_edge(sub.end)
 
         text = sub.text.replace("\n", " ")
-        text = re.sub(r'[^א-ת\s]', '', text)
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"[^א-ת\s]", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
 
         if not text:
             continue
@@ -128,6 +128,19 @@ def load_dataset_from_dir():
     return combined
 
 
+def _cleanup_hf_cache():
+    import shutil
+    cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "datasets")
+    if os.path.isdir(cache_dir):
+        before = sum(
+            os.path.getsize(os.path.join(dp, f))
+            for dp, _, filenames in os.walk(cache_dir)
+            for f in filenames
+        ) / (1024 ** 3)
+        shutil.rmtree(cache_dir)
+        print(f"Cleaned HF datasets cache ({before:.1f} GB): {cache_dir}")
+
+
 def data_to_dataset():
     """Convert audiofolder data into Whisper-ready train/eval arrow datasets."""
     ds = load_dataset_from_dir()
@@ -157,24 +170,42 @@ def data_to_dataset():
         prepare_batch,
         remove_columns=eval_ds.column_names,
         num_proc=1,
+        load_from_cache_file=False,
     )
     eval_ds.save_to_disk("./whisper_eval")
+    eval_ds.cleanup_cache_files()
+    _cleanup_hf_cache()
     print(f"Saved eval: {len(eval_ds)} samples -> ./whisper_eval")
 
-    print("Preparing train dataset...")
-    train_ds = train_ds.map(
-        prepare_batch,
-        remove_columns=train_ds.column_names,
-        num_proc=1,
-    )
-    train_ds.save_to_disk("./whisper_train")
-    print(f"Saved train: {len(train_ds)} samples -> ./whisper_train")
+    cols = train_ds.column_names
+    total = len(train_ds)
+    n_parts = 3
+    part_size = total // n_parts
+
+    print(f"Preparing train dataset in {n_parts} parts ({part_size}+ samples each)...")
+    for i in range(n_parts):
+        start = i * part_size
+        end = total if i == n_parts - 1 else (i + 1) * part_size
+        part = train_ds.select(range(start, end))
+        part = part.map(prepare_batch, remove_columns=cols, num_proc=1, load_from_cache_file=False)
+        part.save_to_disk(f"./whisper_train/part_{i}")
+        part.cleanup_cache_files()
+        del part
+        _cleanup_hf_cache()
+        print(f"  Part {i}: {start}-{end} saved, cache cleaned")
+
+    print(f"Saved train: {total} samples in {n_parts} parts -> ./whisper_train/")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare data for Whisper fine-tuning")
     parser.add_argument("--uid", required=False, help="Content unit uid")
-    parser.add_argument("--skip-prepare", action="store_true", help="Skip SRT slicing, go straight to dataset encoding")
+    parser.add_argument(
+        "--skip-prepare",
+        default=True,
+        action="store_true",
+        help="Skip SRT slicing, go straight to dataset encoding",
+    )
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     args = parser.parse_args()
