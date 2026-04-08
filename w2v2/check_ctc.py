@@ -9,7 +9,7 @@ def check_ctc_lengths(dataset_path: str) -> list[dict]:
     total = len(ds)
     for i, example in enumerate(ds):
         if i % 500 == 0 or i == total - 1:
-            print(f"\r  {i+1}/{total} ({100*(i+1)/total:.1f}%)", end="", flush=True)
+            print(f"\r  {i+1}/{total} ({100*(i+1)/total:.1f}%) | bad: {len(bad)}", end="", flush=True)
         input_len = len(example["input_values"])
         label_len = len([l for l in example["labels"] if l != -100])
         output_len = input_len // DOWNSAMPLE_FACTOR
