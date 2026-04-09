@@ -151,7 +151,7 @@ def train():
         eval_strategy="epoch",
         save_strategy="epoch",
         num_train_epochs=30,
-        bf16=torch.cuda.is_available(),
+        fp16=False,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
         load_best_model_at_end=True,
