@@ -151,7 +151,7 @@ def train():
         eval_strategy="epoch",
         save_strategy="epoch",
         num_train_epochs=30,
-        fp16=False,
+        fp16=torch.cuda.is_available(),
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
         load_best_model_at_end=True,
@@ -181,22 +181,30 @@ def train():
                 )
 
         def on_log(self, args, state, control, logs=None, model=None, **kwargs):
-            if self._diag_done or logs is None:
+            if logs is None:
+                print(f"[DIAG] step={state.global_step} ERROR: logs is None")
                 return
-            self._diag_done = True
             loss_val = logs.get("loss")
             grad_val = logs.get("grad_norm")
-            print(f"[DIAG] First log — loss={loss_val}, grad_norm={grad_val}")
-            if loss_val is not None and (np.isnan(loss_val) or np.isinf(loss_val)):
-                print("[DIAG] WARNING: loss is nan/inf — CTC likely got invalid inputs")
-            if grad_val is not None and grad_val == 0.0:
-                print("[DIAG] WARNING: grad_norm=0 — gradients not flowing")
-                if model is not None:
-                    for name, p in model.named_parameters():
-                        if p.requires_grad and p.grad is not None:
-                            print(f"  {name}: grad_norm={p.grad.norm().item():.6f}")
-                        elif p.requires_grad:
-                            print(f"  {name}: grad=None")
+
+            if not self._diag_done:
+                self._diag_done = True
+                print(f"[DIAG] First log — loss={loss_val}, grad_norm={grad_val}")
+
+            is_bad = False
+            if loss_val is not None and (loss_val == 0.0 or np.isnan(loss_val) or np.isinf(loss_val)):
+                print(f"[DIAG] step={state.global_step} WARNING: loss={loss_val}")
+                is_bad = True
+            if grad_val is not None and (grad_val == 0.0 or np.isnan(grad_val) or np.isinf(grad_val)):
+                print(f"[DIAG] step={state.global_step} WARNING: grad_norm={grad_val}")
+                is_bad = True
+
+            if is_bad and model is not None:
+                for name, p in model.named_parameters():
+                    if p.requires_grad and p.grad is not None:
+                        print(f"  {name}: grad_norm={p.grad.norm().item():.6f}")
+                    elif p.requires_grad:
+                        print(f"  {name}: grad=None")
 
     t0 = time.perf_counter()
     trainer = Trainer(
