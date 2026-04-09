@@ -69,13 +69,16 @@ def _load_precomputed():
         for d in os.listdir(train_parts_dir)
         if os.path.isdir(os.path.join(train_parts_dir, d)) and d.startswith("part_")
     )
+    print(f"Parts: {parts}")
     if parts:
         train_ds = concatenate_datasets(
             [load_from_disk(os.path.join(train_parts_dir, p)) for p in parts]
         )
     else:
         train_ds = load_from_disk(train_parts_dir)
+    print(f"Train dataset size: {len(train_ds)}")
     eval_ds = load_from_disk("./whisper_eval")
+    print(f"Eval dataset size: {len(eval_ds)}")
     return train_ds, eval_ds
 
 
