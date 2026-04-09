@@ -63,6 +63,9 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 def _load_precomputed():
     """Load precomputed Arrow datasets (with input_features/labels)."""
+    eval_ds = load_from_disk("./whisper_eval")
+    print(f"Eval dataset size: {len(eval_ds)}")
+
     train_parts_dir = "./whisper_train"
     parts = sorted(
         d
@@ -77,8 +80,6 @@ def _load_precomputed():
     else:
         train_ds = load_from_disk(train_parts_dir)
     print(f"Train dataset size: {len(train_ds)}")
-    eval_ds = load_from_disk("./whisper_eval")
-    print(f"Eval dataset size: {len(eval_ds)}")
     return train_ds, eval_ds
 
 
@@ -176,7 +177,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--raw-audio",
-        default=False,
         action="store_true",
         help="Load raw audiofolder",
     )
