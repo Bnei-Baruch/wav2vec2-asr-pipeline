@@ -9,9 +9,10 @@ CHUNK_SIZE = 200
 
 
 def load_dataset_from_dir(chunk: int = 0):
-    """Load audiofolders from DATASET_DIR, concatenate, then take rows [chunk*size : (chunk+1)*size)."""
     all_ds = []
-    for name in sorted(os.listdir(DATASET_DIR)):
+    start = chunk * CHUNK_SIZE
+    end = start + CHUNK_SIZE
+    for name in sorted(os.listdir(DATASET_DIR))[start:end]:
         sub_dir = os.path.join(DATASET_DIR, name)
         meta = os.path.join(sub_dir, "metadata.csv")
         if not os.path.isdir(sub_dir) or not os.path.isfile(meta):
@@ -20,23 +21,10 @@ def load_dataset_from_dir(chunk: int = 0):
         all_ds.append(ds)
     if not all_ds:
         raise RuntimeError(f"No datasets found in {DATASET_DIR}")
-    combined = concatenate_datasets(all_ds)
-    n = len(combined)
-    start = chunk * CHUNK_SIZE
-    end = min(start + CHUNK_SIZE, n)
-    if start >= n:
-        raise IndexError(
-            f"chunk={chunk} (rows {start}–…) is past dataset end (n={n})"
-        )
-    combined = combined.select(range(start, end))
-    print(
-        f"Loaded {n} samples from {len(all_ds)} sub-datasets; using chunk {chunk}: rows [{start}, {end}) ({len(combined)} rows)"
-    )
-    return combined
+    return concatenate_datasets(all_ds)
 
 
 def data_to_dataset(chunk: int = 0):
-    """Convert one chunk of audiofolder data into Whisper-ready train/eval arrow datasets."""
     ds = load_dataset_from_dir(chunk=chunk)
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
 
