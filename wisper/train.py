@@ -2,48 +2,31 @@ import os
 import time
 import argparse
 from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
 import evaluate
-from datasets import load_from_disk, concatenate_datasets, Audio
+from datasets import load_from_disk
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
 )
-
 from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
-from .prepare_dataset import load_dataset_from_dir
 
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
     decoder_start_token_id: int
-    raw_audio: bool = False
 
     def __call__(
         self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
-        if self.raw_audio:
-            input_features = [
-                {
-                    "input_features": self.processor.feature_extractor(
-                        f["audio"]["array"], sampling_rate=f["audio"]["sampling_rate"]
-                    ).input_features[0]
-                }
-                for f in features
-            ]
-            label_features = [
-                {"input_ids": self.processor.tokenizer(f["sentence"]).input_ids}
-                for f in features
-            ]
-        else:
-            input_features = [{"input_features": f["input_features"]} for f in features]
-            label_features = [{"input_ids": f["labels"]} for f in features]
+        input_features = [{"input_features": f["input_features"]} for f in features]
+        label_features = [{"input_ids": f["labels"]} for f in features]
 
         batch = self.processor.feature_extractor.pad(
             input_features, return_tensors="pt"
@@ -60,43 +43,12 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         batch["labels"] = labels
         return batch
 
-
-def _load_precomputed():
-    """Load precomputed Arrow datasets (with input_features/labels)."""
-    eval_ds = load_from_disk("./whisper_eval")
-    print(f"Eval dataset size: {len(eval_ds)}")
-
-    train_parts_dir = "./whisper_train"
-    parts = sorted(
-        d
-        for d in os.listdir(train_parts_dir)
-        if os.path.isdir(os.path.join(train_parts_dir, d)) and d.startswith("part_")
+def train(resume_from_checkpoint: Optional[str] = None):
+    model_source = (
+        resume_from_checkpoint if resume_from_checkpoint else BASE_MODEL_ID
     )
-    print(f"Parts: {parts}")
-    if parts:
-        train_ds = concatenate_datasets(
-            [load_from_disk(os.path.join(train_parts_dir, p)) for p in parts]
-        )
-    else:
-        train_ds = load_from_disk(train_parts_dir)
-    print(f"Train dataset size: {len(train_ds)}")
-    return train_ds, eval_ds
-
-
-def _load_raw():
-    """Load raw audiofolder — feature extraction happens in DataCollator."""
-    ds = load_dataset_from_dir()
-    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
-    split = ds.train_test_split(test_size=0.05, seed=42)
-    return split["train"], split["test"]
-
-
-def train(raw_audio: bool = False):
-    print(f"Base model: {BASE_MODEL_ID}")
+    print(f"Load weights from: {model_source}")
     print(f"Output dir: {MODEL_DIR}")
-    print(
-        f"Mode: {'raw audio (on-the-fly features)' if raw_audio else 'precomputed features'}"
-    )
 
     t0 = time.perf_counter()
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
@@ -104,20 +56,18 @@ def train(raw_audio: bool = False):
     print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
 
     t0 = time.perf_counter()
-    if raw_audio:
-        train_ds, eval_ds = _load_raw()
-    else:
-        train_ds, eval_ds = _load_precomputed()
-    print(
-        f"Datasets loaded: train={len(train_ds)}, eval={len(eval_ds)} ({time.perf_counter() - t0:.1f}s)"
-    )
+
+    eval_ds = load_from_disk("./whisper_eval")
+    print(f"Eval dataset size: {len(eval_ds)}")
+
+    train_ds = load_from_disk("./whisper_train")
+    print(f"Train dataset size: {len(train_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
         processor=processor,
         decoder_start_token_id=processor.tokenizer.convert_tokens_to_ids(
             "<|startoftranscript|>"
         ),
-        raw_audio=raw_audio,
     )
 
     wer_metric = evaluate.load("wer")
@@ -137,7 +87,7 @@ def train(raw_audio: bool = False):
 
     t0 = time.perf_counter()
     model = WhisperForConditionalGeneration.from_pretrained(
-        BASE_MODEL_ID,
+        model_source,
         torch_dtype=torch.bfloat16,
     )
     model.generation_config.language = LANGUAGE
@@ -165,7 +115,7 @@ def train(raw_audio: bool = False):
     )
 
     print("Starting training...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
     print("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
@@ -176,9 +126,10 @@ def train(raw_audio: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--raw-audio",
-        action="store_true",
-        help="Load raw audiofolder",
+        "--resume",
+        default=None,
+        metavar="DIR",
+        help="Example: ./models/whisper-large-v3-he/final",
     )
     args = parser.parse_args()
-    train(raw_audio=args.raw_audio)
+    train(resume_from_checkpoint=args.resume)
