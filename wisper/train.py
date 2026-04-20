@@ -19,6 +19,14 @@ from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 
+class BF16Seq2SeqTrainer(Seq2SeqTrainer):
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            return super().prediction_step(
+                model, inputs, prediction_loss_only, ignore_keys=ignore_keys
+            )
+
+
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
@@ -106,8 +114,8 @@ def train(resume_from_checkpoint: Optional[str] = None):
         output_dir=MODEL_DIR,
         **TRAINING_ARGS,
     )
-
-    trainer = Seq2SeqTrainer(
+#TODO: use BF16Seq2SeqTrainer for first train loop, if resume_from_checkpoint switch to Seq2SeqTrainer
+    trainer = BF16Seq2SeqTrainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
