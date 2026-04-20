@@ -27,7 +27,7 @@ TRAINING_ARGS = {
     "predict_with_generate": True,
 
     "generation_max_length": 225,
-    "dataloader_num_workers": 4,
-    "dataloader_pin_memory": True,
+    "dataloader_num_workers": 1,
+    "dataloader_pin_memory": False,
     "remove_unused_columns": False,
 }
