@@ -21,10 +21,18 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 class BF16Seq2SeqTrainer(Seq2SeqTrainer):
     def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
-        with torch.autocast("cuda", dtype=torch.bfloat16):
-            return super().prediction_step(
-                model, inputs, prediction_loss_only, ignore_keys=ignore_keys
-            )
+        print(f"[eval] model dtype: {next(model.parameters()).dtype}")
+        for k, v in inputs.items():
+            if isinstance(v, torch.Tensor):
+                print(f"[eval] input '{k}': shape={v.shape} dtype={v.dtype} device={v.device}")
+        try:
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                return super().prediction_step(
+                    model, inputs, prediction_loss_only, ignore_keys=ignore_keys
+                )
+        except Exception as e:
+            print(f"[eval] FAILED: {type(e).__name__}: {e}")
+            raise
 
 
 @dataclass
