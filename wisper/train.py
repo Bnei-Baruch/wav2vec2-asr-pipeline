@@ -86,13 +86,11 @@ def train(resume_from_checkpoint: Optional[str] = None):
         return {"wer": wer}
 
     t0 = time.perf_counter()
-    model = WhisperForConditionalGeneration.from_pretrained(
-        model_source,
-        torch_dtype=torch.bfloat16,
-    )
+    model = WhisperForConditionalGeneration.from_pretrained(model_source)
     model.generation_config.language = LANGUAGE
     model.generation_config.task = TASK
     model.generation_config.forced_decoder_ids = None
+    model.freeze_encoder()
     print(f"Model loaded: {time.perf_counter() - t0:.1f}s")
 
     total = sum(p.numel() for p in model.parameters())

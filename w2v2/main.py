@@ -19,7 +19,9 @@ MODEL_NAME = f"{MODEL_DIR}/checkpoint-302700"
 def main(audio_path):
     print(f"Running pipeline with model {MODEL_NAME}")
     result = run_pipeline(audio_path)
-    print(f"Result: {result}")
+    print(f"\n=== RAW CHUNKS ({len(result.get('chunks', []))} total) ===")
+    for i, chunk in enumerate(result.get("chunks", [])):
+        print(f"  [{i}] text={repr(chunk['text'])} ts={chunk['timestamp']}")
     make_srt(result)
     save_as_txt(result)
 
