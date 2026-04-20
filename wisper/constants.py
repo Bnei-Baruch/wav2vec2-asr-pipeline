@@ -23,6 +23,7 @@ TRAINING_ARGS = {
     "greater_is_better": False,
     "logging_steps": 25,
     "predict_with_generate": True,
+    "bf16_full_eval": True,
     "generation_max_length": 225,
     "dataloader_num_workers": 4,
     "dataloader_pin_memory": True,
