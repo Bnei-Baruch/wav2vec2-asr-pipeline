@@ -16,6 +16,8 @@ from transformers import (
 )
 from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
