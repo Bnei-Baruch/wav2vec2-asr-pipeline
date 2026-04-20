@@ -13,7 +13,7 @@ from transformers import (
 from pyctcdecode import build_ctcdecoder
 from .constants import MODEL_DIR, VOCAB_PATH, KENLM_MODEL_PATH
 
-MODEL_NAME = f"{MODEL_DIR}/checkpoint-302700"
+MODEL_NAME = f"{MODEL_DIR}/checkpoint-329670"
 
 
 def main(audio_path):
