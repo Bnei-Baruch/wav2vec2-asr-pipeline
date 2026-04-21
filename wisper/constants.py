@@ -10,7 +10,7 @@ TRAINING_ARGS = {
     "per_device_train_batch_size": 4,
     "gradient_accumulation_steps": 8,
     "learning_rate": 1e-5,
-    "warmup_steps": 50,
+    "warmup_steps": 100,
     "num_train_epochs": 3,
     "bf16": True,
     "gradient_checkpointing": True,
@@ -28,7 +28,7 @@ TRAINING_ARGS = {
     "per_device_eval_batch_size": 2,
     "eval_accumulation_steps": 4,
     "generation_max_length": 225,
-    "dataloader_num_workers": 0,
-    "dataloader_pin_memory": False,
+    "dataloader_num_workers": 4,
+    "dataloader_pin_memory": True,
     "remove_unused_columns": False,
 }
