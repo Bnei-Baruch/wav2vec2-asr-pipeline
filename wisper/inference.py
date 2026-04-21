@@ -80,7 +80,7 @@ def save_results(result: dict, base_path: str):
 def main():
     parser = argparse.ArgumentParser(description="Whisper inference")
     parser.add_argument("audio_path", help="Path to audio file")
-    parser.add_argument("--model", default=None, help=f"Model path (default: {MODEL_DIR}/final)")
+    parser.add_argument("--model", default=BASE_MODEL_ID, help=f"Model path (default: {BASE_MODEL_ID})")
     parser.add_argument("--device", default=None, help="Device (default: auto)")
     parser.add_argument("--timestamps", action="store_true", help="Show timestamps")
     parser.add_argument("--out", default="text_whisper", help="Output base path (default: text_whisper)")
