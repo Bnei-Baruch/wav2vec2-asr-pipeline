@@ -50,15 +50,44 @@ def transcribe(audio_path: str, model_path: str = None, device: str = None):
     return result
 
 
+def _format_srt_time(seconds: float) -> str:
+    seconds = seconds or 0.0
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def save_results(result: dict, base_path: str):
+    txt_path = base_path + ".txt"
+    srt_path = base_path + ".srt"
+
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(result.get("text", "").strip() + "\n")
+    print(f"Saved text: {txt_path}")
+
+    chunks = result.get("chunks", [])
+    with open(srt_path, "w", encoding="utf-8") as f:
+        for i, chunk in enumerate(chunks, 1):
+            ts = chunk.get("timestamp", (0.0, 0.0))
+            start = _format_srt_time(ts[0])
+            end = _format_srt_time(ts[1])
+            f.write(f"{i}\n{start} --> {end}\n{chunk['text'].strip()}\n\n")
+    print(f"Saved SRT:  {srt_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Whisper inference")
     parser.add_argument("audio_path", help="Path to audio file")
     parser.add_argument("--model", default=None, help=f"Model path (default: {MODEL_DIR}/final)")
     parser.add_argument("--device", default=None, help="Device (default: auto)")
     parser.add_argument("--timestamps", action="store_true", help="Show timestamps")
+    parser.add_argument("--out", default="text_whisper", help="Output base path (default: text_whisper)")
     args = parser.parse_args()
 
     result = transcribe(args.audio_path, args.model, args.device)
+    save_results(result, args.out)
 
     if args.timestamps and "chunks" in result:
         for chunk in result["chunks"]:
