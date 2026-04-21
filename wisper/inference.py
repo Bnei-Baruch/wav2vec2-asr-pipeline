@@ -1,4 +1,5 @@
 import argparse
+import os
 import torch
 from transformers import (
     WhisperForConditionalGeneration,
@@ -37,6 +38,9 @@ def load_pipeline(model_path: str = None, device: str = None):
 
 
 def transcribe(audio_path: str, model_path: str = None, device: str = None):
+    print(f"[transcribe] audio_path='{audio_path}' abs='{os.path.abspath(audio_path)}' exists={os.path.isfile(audio_path)}")
+    if not os.path.isfile(audio_path):
+        raise ValueError(f"Audio path '{audio_path}' does not exist or is not a file")
     pipe = load_pipeline(model_path, device)
     result = pipe(
         audio_path,
