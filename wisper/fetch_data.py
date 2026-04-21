@@ -38,7 +38,7 @@ def prepare_data(audio_path, srt_path, output_dir):
         end_ms = ms_by_sub_edge(sub.end)
 
         text = sub.text.replace("\n", " ")
-        text = re.sub(r"[^א-ת\s]", "", text)
+        text = re.sub(r"<[^>]+>", "", text)
         text = re.sub(r"\s+", " ", text).strip()
 
         if not text:
