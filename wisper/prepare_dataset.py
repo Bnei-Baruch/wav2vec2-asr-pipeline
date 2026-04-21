@@ -8,11 +8,9 @@ from .constants import DATASET_DIR, BASE_MODEL_ID
 CHUNK_SIZE = 200
 
 
-def load_dataset_from_dir(chunk: int = 0):
+def load_dataset_from_dir():
     all_ds = []
-    start = chunk * CHUNK_SIZE
-    end = start + CHUNK_SIZE
-    for name in sorted(os.listdir(DATASET_DIR))[start:end]:
+    for name in sorted(os.listdir(DATASET_DIR)):
         sub_dir = os.path.join(DATASET_DIR, name)
         meta = os.path.join(sub_dir, "metadata.csv")
         if not os.path.isdir(sub_dir) or not os.path.isfile(meta):
@@ -24,8 +22,8 @@ def load_dataset_from_dir(chunk: int = 0):
     return concatenate_datasets(all_ds)
 
 
-def data_to_dataset(chunk: int = 0):
-    ds = load_dataset_from_dir(chunk=chunk)
+def data_to_dataset():
+    ds = load_dataset_from_dir()
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
 
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
@@ -71,9 +69,4 @@ def data_to_dataset(chunk: int = 0):
 
 
 if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    p.add_argument("--ch", type=int, default=0, help=f"Which slice of {CHUNK_SIZE} rows (0-based).")
-    args = p.parse_args()
-    data_to_dataset(chunk=args.ch)
+    data_to_dataset()
