@@ -16,10 +16,14 @@ def load_pipeline(model_path: str = None, device: str = None):
     if device is None:
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+    if "cuda" in device:
+        torch.cuda.empty_cache()
+
     processor = WhisperProcessor.from_pretrained(model_path)
     model = WhisperForConditionalGeneration.from_pretrained(
         model_path,
         torch_dtype=torch.float16 if "cuda" in device else torch.float32,
+        low_cpu_mem_usage=True,
     )
     model.to(device)
 
@@ -29,7 +33,7 @@ def load_pipeline(model_path: str = None, device: str = None):
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         chunk_length_s=30,
-        batch_size=16,
+        batch_size=4,
         torch_dtype=torch.float16 if "cuda" in device else torch.float32,
         device=device,
     )
