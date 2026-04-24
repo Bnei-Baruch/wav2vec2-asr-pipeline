@@ -17,6 +17,7 @@ def load_pipeline(model_path: str = None, device: str = None):
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     if "cuda" in device:
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
         torch.cuda.empty_cache()
 
     processor = WhisperProcessor.from_pretrained(model_path)
@@ -48,7 +49,7 @@ def transcribe(audio_path: str, model_path: str = None, device: str = None):
     pipe = load_pipeline(model_path, device)
     result = pipe(
         audio_path,
-        generate_kwargs={"language": LANGUAGE, "task": TASK},
+        generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1},
         return_timestamps="word",
     )
     return result
