@@ -92,6 +92,7 @@ def prepare_data_by_uid(uid: str):
     output_dir = join(DATASET_DIR, uid)
     os.makedirs(output_dir, exist_ok=True)
     prepare_data(audio_path, srt_path, output_dir)
+    return srt_path
 
 
 def url_from_csv(path: str):
@@ -124,8 +125,8 @@ def main():
             print(f"Skipping {d} (already exists)")
             continue
         print(f"Preparing {d}")
-        prepare_data_by_uid(d)
-        processed.append(d)
+        srt_path = prepare_data_by_uid(d)
+        processed.append(( d, srt_path))
 
     if processed:
         with open("whisper_data.txt", "w") as f:
