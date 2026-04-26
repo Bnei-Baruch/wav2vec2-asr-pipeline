@@ -112,29 +112,29 @@ def main():
     parser = argparse.ArgumentParser(
         description="Fetch audio from row_data (CSV URL + SRT) and write audiofolder under dataset/"
     )
-    parser.add_argument("--uid", required=False, help="Single content unit uid under row_data/")
-    parser.add_argument("--start", type=int, default=0)
-    parser.add_argument("--end", type=int, default=None)
     args = parser.parse_args()
     print(f"Args: {args}")
 
     os.makedirs(DATASET_DIR, exist_ok=True)
 
-    if args.uid:
-        prepare_data_by_uid(args.uid)
-        return
-
-    dirs = sorted(
-        d
-        for d in os.listdir(ROW_DATA_DIR)
-        if os.path.isdir(os.path.join(ROW_DATA_DIR, d))
-    )
-    for d in dirs[args.start : args.end]:
+    dirs = os.listdir(ROW_DATA_DIR)
+    processed = []
+    for d in dirs:
         if os.path.exists(os.path.join(DATASET_DIR, d)):
             print(f"Skipping {d} (already exists)")
             continue
         print(f"Preparing {d}")
         prepare_data_by_uid(d)
+        processed.append(d)
+
+    if processed:
+        with open("whisper_data.txt", "w") as f:
+            f.write(f"Processed: {len(processed)}\n")
+            f.write(f"First: {processed[0]}\n")
+            f.write(f"Last: {processed[-1]}\n")
+            f.write("Full list:\n")
+            for d in processed:
+                f.write(f"  {d}\n")
 
 
 if __name__ == "__main__":
