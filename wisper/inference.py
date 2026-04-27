@@ -34,7 +34,8 @@ def load_pipeline(model_path: str = None, device: str = None):
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         chunk_length_s=30,
-        batch_size=4,
+        stride_length_s=5,
+        batch_size=1,
         torch_dtype=torch.float16 if "cuda" in device else torch.float32,
         device=device,
     )
@@ -47,6 +48,8 @@ def transcribe(audio_path: str, model_path: str = None, device: str = None):
     if not os.path.isfile(audio_path):
         raise ValueError(f"Audio path '{audio_path}' does not exist or is not a file")
     pipe = load_pipeline(model_path, device)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     result = pipe(
         audio_path,
         generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1},
