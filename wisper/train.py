@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import argparse
@@ -57,6 +58,12 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         batch["labels"] = labels
         return batch
 
+def _checkpoint_epoch(checkpoint_dir: str) -> float:
+    state_file = os.path.join(checkpoint_dir, "trainer_state.json")
+    with open(state_file) as f:
+        return json.load(f)["epoch"]
+
+
 def train(resume_from_checkpoint: Optional[str] = None):
     model_source = (
         resume_from_checkpoint if resume_from_checkpoint else BASE_MODEL_ID
@@ -114,9 +121,14 @@ def train(resume_from_checkpoint: Optional[str] = None):
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Parameters: {trainable:,} trainable / {total:,} total")
 
+    base_epoch = int(_checkpoint_epoch(resume_from_checkpoint)) if resume_from_checkpoint else 0
+    num_train_epochs = base_epoch + TRAINING_ARGS["num_train_epochs"]
+    if resume_from_checkpoint:
+        print(f"Resuming from epoch {base_epoch}, training until epoch {num_train_epochs}")
+
     training_args = Seq2SeqTrainingArguments(
         output_dir=MODEL_DIR,
-        **TRAINING_ARGS,
+        **{**TRAINING_ARGS, "num_train_epochs": num_train_epochs},
     )
 #TODO: use BF16Seq2SeqTrainer for first train loop, if resume_from_checkpoint switch to Seq2SeqTrainer
     trainer = BF16Seq2SeqTrainer(
@@ -144,7 +156,7 @@ if __name__ == "__main__":
         "--resume",
         default=None,
         metavar="DIR",
-        help="Example: ./models/whisper-large-v3-he/final",
+        help="Example: ./models/whisper-large-v3-he/checkpoint-400",
     )
     args = parser.parse_args()
     train(resume_from_checkpoint=args.resume)
