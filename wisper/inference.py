@@ -53,7 +53,8 @@ def transcribe(audio_path: str, model_path: str = None, device: str = None):
     result = pipe(
         audio_path,
         generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1},
-        return_timestamps="word",
+        return_timestamps=True,
+        #return_timestamps="word",
     )
     return result
 
