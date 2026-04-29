@@ -14,10 +14,17 @@ from transformers import (
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
+    TrainerCallback,
 )
 from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
+
+class ResetBestMetricCallback(TrainerCallback):
+    def on_train_begin(self, _args, state, _control, **_kwargs):
+        state.best_metric = None
+        state.best_model_checkpoint = None
 
 
 class BF16Seq2SeqTrainer(Seq2SeqTrainer):
@@ -130,7 +137,8 @@ def train(resume_from_checkpoint: Optional[str] = None):
         output_dir=MODEL_DIR,
         **{**TRAINING_ARGS, "num_train_epochs": num_train_epochs},
     )
-#TODO: use BF16Seq2SeqTrainer for first train loop, if resume_from_checkpoint switch to Seq2SeqTrainer
+    
+    callbacks = [ResetBestMetricCallback()] if resume_from_checkpoint else []
     trainer = BF16Seq2SeqTrainer(
         model=model,
         args=training_args,
@@ -139,6 +147,7 @@ def train(resume_from_checkpoint: Optional[str] = None):
         data_collator=data_collator,
         compute_metrics=compute_metrics,
         processing_class=processor,
+        callbacks=callbacks,
     )
 
     print("Starting training...")

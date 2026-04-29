@@ -15,10 +15,8 @@ TRAINING_ARGS = {
     "bf16": True,
     "gradient_checkpointing": True,
     "gradient_checkpointing_kwargs": {"use_reentrant": False},
-    "eval_strategy": "steps",
-    "eval_steps": 100,
-    "save_strategy": "steps",
-    "save_steps": 100,
+    "eval_strategy": "epoch",
+    "save_strategy": "epoch",
     "save_total_limit": 1,
     "load_best_model_at_end": True,
     "metric_for_best_model": "wer",
@@ -31,4 +29,5 @@ TRAINING_ARGS = {
     "dataloader_num_workers": 4,
     "dataloader_pin_memory": True,
     "remove_unused_columns": False,
+    "ignore_data_skip": True,
 }
