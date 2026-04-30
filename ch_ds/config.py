@@ -1,5 +1,5 @@
 DATA_DIR             = "./row_data"
-EXPORT_PATH          = None          # путь для CSV с проблемными записями, None — не экспортировать
+EXPORT_PATH          = "./result.csv"          # путь для CSV с проблемными записями, None — не экспортировать
 LOG_PATH             = "./ch_ds.log" # путь к файлу логов
 MAX_PRINT            = 10            # сколько примеров показывать на каждый тип флага
 
