@@ -22,8 +22,8 @@ def check_punct(text: str) -> list[str]:
         flags.append('punct_repeated')
     if PUNCT_SPACE_BEFORE.search(text):
         flags.append('punct_space_before')
-    if PUNCT_NO_SPACE_AFTER.search(text):
-        flags.append('punct_no_space_after')
+    #if PUNCT_NO_SPACE_AFTER.search(text):
+    #   flags.append('punct_no_space_after')
     if PUNCT_MOJIBAKE.search(text):
         flags.append('punct_mojibake')
     return flags
@@ -34,8 +34,8 @@ def punct_detail(text: str, flag: str) -> str:
     if flag == 'punct_repeated':
         m = PUNCT_REPEATED.search(text)
         return f'match="{m.group()}"' if m else ''
-    if flag == 'punct_no_space_after':
-        m = PUNCT_NO_SPACE_AFTER.search(text)
+    #if flag == 'punct_no_space_after':
+     #   m = PUNCT_NO_SPACE_AFTER.search(text)
         return f'match="{m.group()}"' if m else ''
     if flag == 'punct_mojibake':
         m = PUNCT_MOJIBAKE.search(text)

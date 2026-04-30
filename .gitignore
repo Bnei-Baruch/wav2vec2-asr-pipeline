@@ -12,3 +12,5 @@ row_data*/
 .DS_Store
 kenlm.arpa
 audio.srt
+*.csv
+*.log
