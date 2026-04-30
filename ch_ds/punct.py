@@ -6,7 +6,7 @@ PUNCT_REPEATED     = re.compile(r'([,!?;])\1+|\.{2}(?!\.)|\.{4,}')
 PUNCT_SPACE_BEFORE   = re.compile(r'\s[,;.!?](?!\Z)')
 # no space after punctuation; (?<=\S) skips punct at start of string (e.g. ?שלום in Hebrew)
 # excludes geresh ׳ / gershayim ״ so Hebrew abbreviations like ד״ר are not flagged
-PUNCT_NO_SPACE_AFTER = re.compile(r'(?<=\S)[,.!?](?=[^\s\d"\')\]׳״…])')
+PUNCT_NO_SPACE_AFTER = re.compile(r'(?<=\S)[,.!?](?=[^\s\d"\')\].׳״…])')
 # mojibake: UTF-8 bytes read as Latin-1 — appears as â€ sequences
 PUNCT_MOJIBAKE     = re.compile(r'â€|Ã[\x80-\xff]|\x00')
 # entry with no Hebrew/Latin/digit characters at all
