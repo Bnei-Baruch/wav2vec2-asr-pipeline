@@ -146,7 +146,7 @@ def _flag_detail(entry: SrtEntry, flag: str, data_dir: str) -> str:
         'exceeds_audio': f'entry_end={entry.end_sec:.2f}s',
         'bad_timing':   f'duration={dur:.3f}s',
     }
-    extra = extras.get(flag) or punct_detail(entry.text, flag)
+    extra = extras.get(flag) # or punct_detail(entry.text, flag)
     text_preview = entry.text[:80].replace('\n', ' ')
     return f'[{flag}] {rel} entry#{entry.index} {ts}  {extra}  text="{text_preview}"'
 
@@ -187,7 +187,7 @@ def check_entry(entry: SrtEntry, mp3_duration: float | None = None) -> list[str]
     if mp3_duration is not None and entry.end_sec > mp3_duration + config.EXCEEDS_AUDIO_SLACK:
         flags.append('exceeds_audio')
 
-    flags.extend(check_punct(text))
+    #flags.extend(check_punct(text))
 
     return flags
 
