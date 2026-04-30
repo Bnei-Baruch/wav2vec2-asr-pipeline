@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from . import config
 from .punct import check_punct, punct_detail
 
-CYRILLIC     = re.compile(r'[Ѐ-ӿ]')
+CYRILLIC     = re.compile(r'[\u0400-\u04ff]')
 LATIN        = re.compile(r'[a-zA-Z]')
 HTML_TAG     = re.compile(r'<[^>]+>')
 TIMESTAMP    = re.compile(r'\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}')
