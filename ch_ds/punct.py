@@ -1,13 +1,14 @@
 import re
 
 # repeated same mark (,, !! ?? ;;) or wrong dots (.. or ....+) — excludes valid ellipsis ...
-PUNCT_REPEATED     = re.compile(r'([,!?;])\1+|\.{2}(?!\.)|\\.{4,}')
-# space before punctuation: "שלום ," or "שלום ."
-PUNCT_SPACE_BEFORE = re.compile(r'\s[,;.!?]')
-# no space after comma/period when followed by a letter: "שלום,כן" or "גמרנו.עכשיו"
-PUNCT_NO_SPACE_AFTER = re.compile(r'[,.](?=[^\s\d"\')\]…])')
+PUNCT_REPEATED     = re.compile(r'([,!?;])\1+|\.{2}(?!\.)|\.{4,}')
+# space before punctuation; (?!\Z) skips trailing punct at end of string
+PUNCT_SPACE_BEFORE   = re.compile(r'\s[,;.!?](?!\Z)')
+# no space after punctuation; (?<=\S) skips punct at start of string (e.g. ?שלום in Hebrew)
+# excludes geresh ׳ / gershayim ״ so Hebrew abbreviations like ד״ר are not flagged
+PUNCT_NO_SPACE_AFTER = re.compile(r'(?<=\S)[,.!?](?=[^\s\d"\')\]׳״…])')
 # mojibake: UTF-8 bytes read as Latin-1 — appears as â€ sequences
-PUNCT_MOJIBAKE     = re.compile(r'S')#PUNCT_MOJIBAKE     = re.compile(r'â€|Ã[€-ÿ]|\x00')
+PUNCT_MOJIBAKE     = re.compile(r'â€|Ã[\x80-\xff]|\x00')
 # entry with no Hebrew/Latin/digit characters at all
 HEBREW_OR_ALNUM    = re.compile(r'[א-תװ-״\w]', re.UNICODE)
 

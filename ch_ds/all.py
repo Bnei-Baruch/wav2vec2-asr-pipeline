@@ -1,6 +1,6 @@
 """
-Runs all dataset checks (txt, audio, lang) on every (srt, mp3) pair.
-Writes pairs that passed all checks to ALL_EXPORT_BASE CSV files.
+Runs all dataset checks (txt, audio, lang) on every metadata entry.
+Writes entries that passed all checks to ALL_EXPORT_BASE CSV files.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ except ImportError:
     def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
-from .txt import find_pairs, parse_srt, check_entry
-from .audio import check_mp3
+from .txt import MetadataEntry, find_metadata_files, parse_metadata, check_entry
+from .audio import check_wav
 from .lang import _load_audio, _detect_language
 
 
@@ -50,60 +50,35 @@ SR = 16_000
 
 
 @dataclass
-class PairResult:
-    srt_path: str
-    mp3_path: str
-    source_dir: str = ''
+class EntryResult:
+    source: str
+    index: int
+    wav_path: str
+    text: str
     duration_s: float | None = None
-    srt_entries: int = 0
-    text: str = ''
     rejected: bool = False
     reasons: list[str] = field(default_factory=list)
 
 
-def _check_txt(srt_path: str) -> tuple[bool, list[str]]:
-    """Returns (ok, reasons). ok=False если файл не прошёл текстовые проверки."""
-    entries = parse_srt(srt_path)
-    if not entries:
-        return False, ['no_srt_entries']
-
-    flagged_entries = 0
-    fatal_found = []
-
-    for entry in entries:
-        flags = check_entry(entry)
-        if not flags:
-            continue
-        flagged_entries += 1
-        for f in flags:
-            if f in config.ALL_TXT_FATAL_FLAGS:
-                if f not in fatal_found:
-                    fatal_found.append(f)
-
-    reasons = []
-    if fatal_found:
-        reasons.append(f'txt_fatal:{"|".join(fatal_found)}')
-
-    ratio = flagged_entries / len(entries)
-    if ratio > config.ALL_TXT_MAX_FLAG_RATIO:
-        reasons.append(f'txt_flag_ratio:{ratio:.2%}')
-
-    return len(reasons) == 0, reasons
+def _check_txt(entry: MetadataEntry) -> tuple[bool, list[str]]:
+    flags = check_entry(entry)
+    fatal = [f for f in flags if f in config.ALL_TXT_FATAL_FLAGS]
+    if fatal:
+        return False, [f'txt:{"|".join(fatal)}']
+    return True, []
 
 
-def _check_audio(mp3_path: str) -> tuple[bool, list[str]]:
-    """Returns (ok, reasons)."""
-    result = check_mp3(mp3_path)
+def _check_audio(wav_path: str) -> tuple[bool, list[str]]:
+    result = check_wav(wav_path)
     if result.flags:
         return False, [f'audio:{"|".join(result.flags)}']
     return True, []
 
 
-def _check_lang(mp3_path: str, model, tmp_dir: str) -> tuple[bool, list[str]]:
-    """Returns (ok, reasons). Sliding window language detection."""
+def _check_lang(wav_path: str, model, tmp_dir: str) -> tuple[bool, list[str]]:
     import numpy as np
 
-    audio = _load_audio(mp3_path)
+    audio = _load_audio(wav_path)
     if audio is None:
         return False, ['lang:unreadable']
 
@@ -136,16 +111,20 @@ def main():
     log.info('Checks: txt + audio%s', ' + lang' if config.ALL_RUN_LANG else '')
     log.info('Output base: %s', config.ALL_EXPORT_BASE)
 
-    pairs = find_pairs(data_dir)
-    valid = [(srt, mp3) for srt, mp3 in pairs if mp3 is not None]
-    skipped = len(pairs) - len(valid)
-    if skipped:
-        log.warning('Skipped %d SRT(s) with no .mp3', skipped)
-    if not valid:
-        log.error('No valid pairs found in %s', data_dir)
+    metadata_files = find_metadata_files(data_dir)
+    if not metadata_files:
+        log.error('No metadata.csv files found in %s', data_dir)
         return
 
-    log.info('Found %d (srt, mp3) pairs', len(valid))
+    all_entries: list[MetadataEntry] = []
+    for csv_path in metadata_files:
+        all_entries.extend(parse_metadata(csv_path))
+
+    if not all_entries:
+        log.error('No entries found in %s', data_dir)
+        return
+
+    log.info('Found %d entries across %d metadata file(s)', len(all_entries), len(metadata_files))
 
     lang_model = None
     if config.ALL_RUN_LANG:
@@ -163,7 +142,7 @@ def main():
     n = 0
     n_passed = 0
     total_good_hours = 0.0
-    rejected_samples: list[PairResult] = []
+    rejected_samples: list[EntryResult] = []
 
     try:
         fa = open(f'{base}_all.csv',      'w', newline='', encoding='utf-8')
@@ -173,68 +152,73 @@ def main():
         log.error('Cannot open output CSV files: %s', e)
         return
 
-    _hdr_base = ['mp3_path', 'srt_path', 'source_dir', 'duration_s', 'srt_entries']
+    _hdr = ['source', 'index', 'wav_path', 'text', 'duration_s']
     wa, wp, wr = csv.writer(fa), csv.writer(fp), csv.writer(fr)
-    wa.writerow(_hdr_base + ['reasons', 'passed'])
-    wp.writerow(_hdr_base + ['text'])
-    wr.writerow(_hdr_base + ['reasons'])
+    wa.writerow(_hdr + ['reasons', 'passed'])
+    wp.writerow(_hdr)
+    wr.writerow(_hdr + ['reasons'])
 
     def _f(v): return f'{v:.2f}' if v is not None else ''
 
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            for srt_path, mp3_path in tqdm(valid, desc='full QC', unit='pair'):
-                rel_mp3 = os.path.relpath(mp3_path, data_dir)
+            for entry in tqdm(all_entries, desc='full QC', unit='entry'):
+                rel = os.path.relpath(entry.wav_path, data_dir)
 
                 try:
-                    entries = parse_srt(srt_path)
-                    full_text = ' '.join(e.text for e in entries).strip()
-                    from .audio import check_mp3 as _check_mp3_inner
-                    audio_r = _check_mp3_inner(mp3_path)
+                    audio_r = check_wav(entry.wav_path)
                 except Exception as e:
-                    log.error('Failed to process pair %s: %s', rel_mp3, e)
+                    log.error('Failed to read audio for %s: %s', rel, e)
                     continue
 
-                source_dir = os.path.relpath(os.path.dirname(srt_path), data_dir)
-                r = PairResult(
-                    srt_path=srt_path, mp3_path=mp3_path, source_dir=source_dir,
-                    duration_s=audio_r.duration_s, srt_entries=len(entries), text=full_text,
+                r = EntryResult(
+                    source=entry.source,
+                    index=entry.index,
+                    wav_path=entry.wav_path,
+                    text=entry.text,
+                    duration_s=audio_r.duration_s,
                 )
 
                 try:
-                    ok_txt, reasons_txt = _check_txt(srt_path)
+                    ok_txt, reasons_txt = _check_txt(entry)
                     if not ok_txt:
-                        r.rejected = True; r.reasons.extend(reasons_txt)
+                        r.rejected = True
+                        r.reasons.extend(reasons_txt)
                         log.debug('  FAIL txt: %s', reasons_txt)
                 except Exception as e:
-                    log.error('_check_txt failed for %s: %s', rel_mp3, e)
-                    r.rejected = True; r.reasons.append('txt_error')
+                    log.error('_check_txt failed for %s: %s', rel, e)
+                    r.rejected = True
+                    r.reasons.append('txt_error')
 
                 try:
-                    ok_audio, reasons_audio = _check_audio(mp3_path)
+                    ok_audio, reasons_audio = _check_audio(entry.wav_path)
                     if not ok_audio:
-                        r.rejected = True; r.reasons.extend(reasons_audio)
+                        r.rejected = True
+                        r.reasons.extend(reasons_audio)
                         log.debug('  FAIL audio: %s', reasons_audio)
                 except Exception as e:
-                    log.error('_check_audio failed for %s: %s', rel_mp3, e)
-                    r.rejected = True; r.reasons.append('audio_error')
+                    log.error('_check_audio failed for %s: %s', rel, e)
+                    r.rejected = True
+                    r.reasons.append('audio_error')
 
                 if config.ALL_RUN_LANG and lang_model is not None:
                     try:
-                        ok_lang, reasons_lang = _check_lang(mp3_path, lang_model, tmp_dir)
+                        ok_lang, reasons_lang = _check_lang(entry.wav_path, lang_model, tmp_dir)
                         if not ok_lang:
-                            r.rejected = True; r.reasons.extend(reasons_lang)
+                            r.rejected = True
+                            r.reasons.extend(reasons_lang)
                             log.debug('  FAIL lang: %s', reasons_lang)
                     except Exception as e:
-                        log.error('_check_lang failed for %s: %s', rel_mp3, e)
-                        r.rejected = True; r.reasons.append('lang_error')
+                        log.error('_check_lang failed for %s: %s', rel, e)
+                        r.rejected = True
+                        r.reasons.append('lang_error')
 
                 n += 1
-                row_base = [r.mp3_path, r.srt_path, r.source_dir, _f(r.duration_s), r.srt_entries]
+                row_base = [r.source, r.index, r.wav_path, r.text, _f(r.duration_s)]
                 if r.rejected:
                     wa.writerow(row_base + ['|'.join(r.reasons), 'no'])
                     wr.writerow(row_base + ['|'.join(r.reasons)])
-                    log.warning('  REJECTED  %s  reasons=%s', rel_mp3, r.reasons)
+                    log.warning('  REJECTED  %s  reasons=%s', rel, r.reasons)
                     if len(rejected_samples) < config.MAX_PRINT:
                         rejected_samples.append(r)
                 else:
@@ -242,15 +226,15 @@ def main():
                     if r.duration_s:
                         total_good_hours += r.duration_s / 3600
                     wa.writerow(row_base + ['', 'yes'])
-                    wp.writerow(row_base + [r.text])
-                    log.debug('  OK  %s', rel_mp3)
+                    wp.writerow(row_base)
+                    log.debug('  OK  %s', rel)
     finally:
         fa.close(); fp.close(); fr.close()
 
     n_rejected = n - n_passed
     log.info('')
     log.info('=== FULL CHECK REPORT ===')
-    log.info('Total pairs  : %d', n)
+    log.info('Total entries: %d', n)
     log.info('Passed       : %d (%.1f%%)', n_passed,   100 * n_passed   / n if n else 0)
     log.info('Rejected     : %d (%.1f%%)', n_rejected, 100 * n_rejected / n if n else 0)
     if n_passed:
@@ -258,15 +242,13 @@ def main():
 
     if rejected_samples:
         log.info('')
-        log.info('--- Rejected files (showing up to %d) ---', config.MAX_PRINT)
+        log.info('--- Rejected entries (showing up to %d) ---', config.MAX_PRINT)
         for r in rejected_samples:
-            rel = os.path.relpath(r.mp3_path, data_dir)
+            rel = os.path.relpath(r.wav_path, data_dir)
             log.warning('  %s  →  %s', rel, ' | '.join(r.reasons))
 
     log.info('Saved: %s_{all,passed,rejected}.csv', base)
     log.info('Done.')
-
-
 
 
 if __name__ == '__main__':

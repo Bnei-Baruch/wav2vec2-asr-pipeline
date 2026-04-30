@@ -55,18 +55,17 @@ class AudioResult:
     flags: list[str] = field(default_factory=list)
 
 
-def find_mp3_files(data_dir: str) -> list[str]:
+def find_wav_files(data_dir: str) -> list[str]:
     result = []
     for root, dirs, files in os.walk(data_dir):
         dirs.sort()
         for f in sorted(files):
-            if f.lower().endswith('.mp3'):
+            if f.lower().endswith('.wav'):
                 result.append(os.path.join(root, f))
     return result
 
 
 def _silence_ratio(audio) -> float:
-    """Доля чанков тише порога AUDIO_SILENCE_THRESH."""
     chunks = [
         audio[i:i + config.AUDIO_CHUNK_MS]
         for i in range(0, len(audio), config.AUDIO_CHUNK_MS)
@@ -77,22 +76,22 @@ def _silence_ratio(audio) -> float:
     return silent / len(chunks)
 
 
-def check_mp3(path: str) -> AudioResult:
+def check_wav(path: str) -> AudioResult:
     result = AudioResult(path=path)
 
     try:
         from pydub import AudioSegment
-        audio = AudioSegment.from_mp3(path)
+        audio = AudioSegment.from_file(path)
     except Exception as e:
         log.debug('Unreadable: %s — %s', path, e)
         result.flags.append('unreadable')
         return result
 
-    result.duration_s   = len(audio) / 1000.0
-    result.dbfs         = audio.dBFS
-    result.max_dbfs     = audio.max_dBFS
-    result.channels     = audio.channels
-    result.frame_rate   = audio.frame_rate
+    result.duration_s    = len(audio) / 1000.0
+    result.dbfs          = audio.dBFS
+    result.max_dbfs      = audio.max_dBFS
+    result.channels      = audio.channels
+    result.frame_rate    = audio.frame_rate
     result.silence_ratio = _silence_ratio(audio)
 
     if result.duration_s < config.AUDIO_MIN_DURATION:
@@ -134,12 +133,12 @@ def main():
     data_dir = config.DATA_DIR
     log.info('Starting audio QC | data_dir=%s | log=%s', data_dir, config.LOG_PATH)
 
-    mp3_files = find_mp3_files(data_dir)
-    if not mp3_files:
-        log.error('No .mp3 files found in %s', data_dir)
+    wav_files = find_wav_files(data_dir)
+    if not wav_files:
+        log.error('No .wav files found in %s', data_dir)
         return
 
-    log.info('Found %d MP3 file(s)', len(mp3_files))
+    log.info('Found %d WAV file(s)', len(wav_files))
 
     base = config.AUDIO_EXPORT_BASE
     os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
@@ -151,9 +150,9 @@ def main():
     samples_buf: dict[str, list] = {ft: [] for ft in config.AUDIO_FLAG_ORDER}
 
     try:
-        fa = open(f'{base}_audio_all.csv',     'w', newline='', encoding='utf-8')
-        fp = open(f'{base}_audio_passed.csv',  'w', newline='', encoding='utf-8')
-        ff = open(f'{base}_audio_flagged.csv', 'w', newline='', encoding='utf-8')
+        fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
     except OSError as e:
         log.error('Cannot open output CSV files: %s', e)
         return
@@ -168,12 +167,12 @@ def main():
     def _f(v, fmt='.2f'): return format(v, fmt) if v is not None else ''
 
     try:
-        for path in tqdm(mp3_files, desc='audio QC', unit='file'):
+        for path in tqdm(wav_files, desc='audio QC', unit='file'):
             rel = os.path.relpath(path, data_dir)
             try:
-                r = check_mp3(path)
+                r = check_wav(path)
             except Exception as e:
-                log.error('check_mp3 failed for %s: %s', rel, e)
+                log.error('check_wav failed for %s: %s', rel, e)
                 continue
 
             n += 1
@@ -233,7 +232,7 @@ def main():
         for r in samples:
             log.warning(_result_detail(r, flag_type, data_dir))
 
-    log.info('Saved: %s_audio_{all,passed,flagged}.csv', base)
+    log.info('Saved: %s_{all,passed,flagged}.csv', base)
     log.info('Done.')
 
 

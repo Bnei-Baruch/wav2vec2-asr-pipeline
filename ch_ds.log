@@ -1472,3 +1472,142 @@
 2026-04-30 13:57:42  WARNING   [cps_low] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1069 4997.92s–5002.16s  cps=1.4 (min=2)  text="לא די?"
 2026-04-30 13:57:42  INFO      Saved: ./results/txt_txt_{all,passed,flagged}.csv
 2026-04-30 13:57:42  INFO      Done.
+2026-04-30 14:28:38  DEBUG     Unreadable: ./dataset/jTdsjc8v/clips/clip_000000.wav — No module named 'pydub'
+2026-04-30 14:39:18  INFO      Starting text QC | data_dir=./dataset | log=./ch_ds.log
+2026-04-30 14:39:18  INFO      Found 1 metadata file(s)
+2026-04-30 14:39:18  INFO        jTdsjc8v/metadata.csv  (220 entries)
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:39:18  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:39:18  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:39:18  INFO      
+2026-04-30 14:39:18  INFO      === TEXT QC REPORT ===
+2026-04-30 14:39:18  INFO      Total entries   : 220
+2026-04-30 14:39:18  INFO      Flagged entries : 7 (3.2%)
+2026-04-30 14:39:18  INFO      Duplicate text  : 0 extra rows
+2026-04-30 14:39:18  INFO      
+2026-04-30 14:39:18  INFO      --- Flags breakdown ---
+2026-04-30 14:39:18  INFO        punct_repeated        7  (3.18%)
+2026-04-30 14:39:18  INFO        punct_no_space_after      7  (3.18%)
+2026-04-30 14:39:18  INFO      
+2026-04-30 14:39:18  INFO      --- punct_repeated (7 total, showing up to 10) ---
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:39:18  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:39:18  INFO      
+2026-04-30 14:39:18  INFO      --- punct_no_space_after (7 total, showing up to 10) ---
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:39:18  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:39:18  INFO      Saved: ./results/txt_{all,passed,flagged}.csv
+2026-04-30 14:39:18  INFO      Done.
+2026-04-30 14:46:04  INFO      Starting text QC | data_dir=./dataset | log=./ch_ds.log
+2026-04-30 14:46:04  INFO      Found 1 metadata file(s)
+2026-04-30 14:46:04  INFO        jTdsjc8v/metadata.csv  (220 entries)
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:04  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:04  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:04  INFO      
+2026-04-30 14:46:04  INFO      === TEXT QC REPORT ===
+2026-04-30 14:46:04  INFO      Total entries   : 220
+2026-04-30 14:46:04  INFO      Flagged entries : 7 (3.2%)
+2026-04-30 14:46:04  INFO      Duplicate text  : 0 extra rows
+2026-04-30 14:46:04  INFO      
+2026-04-30 14:46:04  INFO      --- Flags breakdown ---
+2026-04-30 14:46:04  INFO        punct_repeated        7  (3.18%)
+2026-04-30 14:46:04  INFO        punct_no_space_after      7  (3.18%)
+2026-04-30 14:46:04  INFO      
+2026-04-30 14:46:04  INFO      --- punct_repeated (7 total, showing up to 10) ---
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:04  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:04  INFO      
+2026-04-30 14:46:04  INFO      --- punct_no_space_after (7 total, showing up to 10) ---
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:04  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:04  INFO      Saved: ./results/txt_{all,passed,flagged}.csv
+2026-04-30 14:46:04  INFO      Done.
+2026-04-30 14:46:10  INFO      Starting text QC | data_dir=./dataset | log=./ch_ds.log
+2026-04-30 14:46:10  INFO      Found 1 metadata file(s)
+2026-04-30 14:46:10  INFO        jTdsjc8v/metadata.csv  (220 entries)
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:10  DEBUG     [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:10  DEBUG     [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:10  INFO      
+2026-04-30 14:46:10  INFO      === TEXT QC REPORT ===
+2026-04-30 14:46:10  INFO      Total entries   : 220
+2026-04-30 14:46:10  INFO      Flagged entries : 7 (3.2%)
+2026-04-30 14:46:10  INFO      Duplicate text  : 0 extra rows
+2026-04-30 14:46:10  INFO      
+2026-04-30 14:46:10  INFO      --- Flags breakdown ---
+2026-04-30 14:46:10  INFO        punct_repeated        7  (3.18%)
+2026-04-30 14:46:10  INFO        punct_no_space_after      7  (3.18%)
+2026-04-30 14:46:10  INFO      
+2026-04-30 14:46:10  INFO      --- punct_repeated (7 total, showing up to 10) ---
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:10  WARNING   [punct_repeated] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:10  INFO      
+2026-04-30 14:46:10  INFO      --- punct_no_space_after (7 total, showing up to 10) ---
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #22  text="השכל, הרגש, הם כאילו כבר...?"
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #31  text="קודם היינו מתכסחים וכל הזמן זה... ופתאום"
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #91  text="החדשה? אם עד עכשיו עשינו כל מיני תרגילים ו..."
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #120  text="שיהיה לי טוב. אבל... אבל..."
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #151  text="אחרות, כמו במחשב. כמו ב..."
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #179  text="שתעשה משהו זה יהיה נכון. זה יהיה..."
+2026-04-30 14:46:10  WARNING   [punct_no_space_after] jTdsjc8v/metadata.csv #215  text="אנחנו חיים בצורה ללא... למעלה מהזמן,"
+2026-04-30 14:46:10  INFO      Saved: ./results/txt_{all,passed,flagged}.csv
+2026-04-30 14:46:10  INFO      Done.

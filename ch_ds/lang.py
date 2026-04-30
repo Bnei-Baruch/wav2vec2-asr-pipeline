@@ -1,9 +1,8 @@
 """
-Language detection across full MP3 files using a sliding window.
+Language detection for WAV clips using faster-whisper.
 
-For each window: run faster-whisper language detection (no transcription).
-Flags windows where detected language != LANG_EXPECTED.
-Catches Russian/other inclusions anywhere in the file.
+For each clip (or sliding window if clip > LANG_WINDOW_S):
+  run faster-whisper language detection, flag if lang != LANG_EXPECTED.
 """
 from __future__ import annotations
 
@@ -23,7 +22,7 @@ except ImportError:
     def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
-from .audio import find_mp3_files
+from .txt import find_metadata_files, parse_metadata
 
 
 def _setup_logger() -> logging.Logger:
@@ -70,19 +69,19 @@ class FileResult:
     flags: list[str] = field(default_factory=list)
 
 
-def _load_audio(mp3_path: str) -> np.ndarray | None:
-    """Load mp3 as mono float32 at 16kHz."""
+def _load_audio(wav_path: str) -> np.ndarray | None:
+    """Load audio as mono float32 at 16kHz."""
     try:
         import whisperx
-        return whisperx.load_audio(mp3_path)
+        return whisperx.load_audio(wav_path)
     except Exception:
         pass
     try:
         from pydub import AudioSegment
-        seg = AudioSegment.from_mp3(mp3_path).set_channels(1).set_frame_rate(SR)
+        seg = AudioSegment.from_file(wav_path).set_channels(1).set_frame_rate(SR)
         return np.array(seg.get_array_of_samples(), dtype=np.float32) / 32768.0
     except Exception as e:
-        log.debug('Cannot load audio %s: %s', mp3_path, e)
+        log.debug('Cannot load audio %s: %s', wav_path, e)
         return None
 
 
@@ -98,7 +97,6 @@ def _detect_language(model, audio_chunk: np.ndarray, tmp_dir: str) -> tuple[str,
             condition_on_previous_text=False,
             without_timestamps=True,
         )
-        # consume generator to populate info
         for _ in segments:
             break
         return info.language, info.language_probability
@@ -107,11 +105,11 @@ def _detect_language(model, audio_chunk: np.ndarray, tmp_dir: str) -> tuple[str,
         return None
 
 
-def analyze_file(mp3_path: str, model, tmp_dir: str) -> FileResult:
-    result = FileResult(path=mp3_path)
-    rel = os.path.relpath(mp3_path, config.DATA_DIR)
+def analyze_file(wav_path: str, model, tmp_dir: str) -> FileResult:
+    result = FileResult(path=wav_path)
+    rel = os.path.relpath(wav_path, config.DATA_DIR)
 
-    audio = _load_audio(mp3_path)
+    audio = _load_audio(wav_path)
     if audio is None:
         result.flags.append('unreadable')
         return result
@@ -131,7 +129,6 @@ def analyze_file(mp3_path: str, model, tmp_dir: str) -> FileResult:
         end = min(start + window_samples, total_samples)
         chunk = audio[start:end]
 
-        # skip near-silent chunks
         if np.abs(chunk).mean() < 1e-4:
             continue
 
@@ -174,12 +171,21 @@ def main():
     log.info('Window=%.0fs  Stride=%.0fs  MinProb=%.2f  Expected=%s',
              config.LANG_WINDOW_S, config.LANG_STRIDE_S, config.LANG_MIN_PROB, config.LANG_EXPECTED)
 
-    mp3_files = find_mp3_files(data_dir)
-    if not mp3_files:
-        log.error('No .mp3 files found in %s', data_dir)
+    metadata_files = find_metadata_files(data_dir)
+    if not metadata_files:
+        log.error('No metadata.csv files found in %s', data_dir)
         return
 
-    log.info('Found %d MP3 file(s)', len(mp3_files))
+    wav_paths: list[str] = []
+    for csv_path in metadata_files:
+        for entry in parse_metadata(csv_path):
+            wav_paths.append(entry.wav_path)
+
+    if not wav_paths:
+        log.error('No WAV entries found in metadata files')
+        return
+
+    log.info('Found %d WAV entry/entries', len(wav_paths))
 
     device, compute_type = _resolve_device()
     log.info('Loading model: %s  device=%s  compute_type=%s', config.LANG_MODEL, device, compute_type)
@@ -214,10 +220,10 @@ def main():
 
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            for mp3_path in tqdm(mp3_files, desc='lang QC', unit='file'):
-                rel = os.path.relpath(mp3_path, data_dir)
+            for wav_path in tqdm(wav_paths, desc='lang QC', unit='file'):
+                rel = os.path.relpath(wav_path, data_dir)
                 try:
-                    r = analyze_file(mp3_path, model, tmp_dir)
+                    r = analyze_file(wav_path, model, tmp_dir)
                 except Exception as e:
                     log.error('analyze_file failed for %s: %s', rel, e)
                     continue

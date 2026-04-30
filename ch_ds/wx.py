@@ -6,6 +6,7 @@ import os
 import random
 import re
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass, field
 
 import torch
@@ -15,7 +16,7 @@ except ImportError:
     def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
-from .txt import find_pairs, parse_srt
+from .txt import MetadataEntry, find_metadata_files, parse_metadata
 
 
 def _setup_logger() -> logging.Logger:
@@ -57,24 +58,17 @@ def _normalize(text: str) -> str:
     return ' '.join(text.split()).strip()
 
 
-def _srt_ground_truth(srt_path: str) -> str:
-    entries = parse_srt(srt_path)
-    return _normalize(' '.join(e.text for e in entries))
-
-
 def _resolve_device() -> tuple[str, str]:
-    if config.WX_DEVICE:
-        device = config.WX_DEVICE
-    else:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = config.WX_DEVICE or ('cuda' if torch.cuda.is_available() else 'cpu')
     compute_type = config.WX_COMPUTE_TYPE if device == 'cuda' else 'int8'
     return device, compute_type
 
 
 @dataclass
 class WxResult:
-    mp3_path: str
-    srt_path: str
+    wav_path: str
+    source: str
+    index: int
     detected_lang: str | None = None
     hypothesis: str | None = None
     reference: str | None = None
@@ -92,7 +86,7 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
     return jiwer_wer(reference, hypothesis)
 
 
-def run(pairs: list[tuple[str, str]], device: str, compute_type: str) -> list[WxResult]:
+def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[WxResult]:
     import whisperx
 
     log.info('Loading WhisperX model: %s  device=%s  compute_type=%s',
@@ -116,20 +110,18 @@ def run(pairs: list[tuple[str, str]], device: str, compute_type: str) -> list[Wx
 
     results: list[WxResult] = []
 
-    for srt_path, mp3_path in tqdm(pairs, desc='whisperx QC', unit='file'):
-        rel = os.path.relpath(mp3_path, config.DATA_DIR)
+    for entry in tqdm(entries, desc='whisperx QC', unit='file'):
+        rel = os.path.relpath(entry.wav_path, config.DATA_DIR)
+        r = WxResult(wav_path=entry.wav_path, source=entry.source, index=entry.index)
+        r.reference = _normalize(entry.text)
 
-        r = WxResult(mp3_path=mp3_path, srt_path=srt_path)
-        try:
-            r.reference = _srt_ground_truth(srt_path)
-        except Exception as e:
-            log.error('Failed to read SRT ground truth for %s: %s', rel, e)
+        if not r.reference:
             r.flags.append('empty_transcription')
             results.append(r)
             continue
 
         try:
-            audio = whisperx.load_audio(mp3_path)
+            audio = whisperx.load_audio(entry.wav_path)
             wx_out = model.transcribe(audio, batch_size=config.WX_BATCH_SIZE)
         except Exception as e:
             log.warning('Transcription failed for %s: %s', rel, e)
@@ -181,21 +173,25 @@ def main():
     log.info('Starting WhisperX QC | data_dir=%s | limit=%s | log=%s',
              data_dir, config.WX_LIMIT, config.LOG_PATH)
 
-    all_pairs = find_pairs(data_dir)
-    valid_pairs = [(srt, mp3) for srt, mp3 in all_pairs if mp3 is not None]
-    skipped = len(all_pairs) - len(valid_pairs)
-    if skipped:
-        log.warning('Skipped %d SRT(s) with no matching .mp3', skipped)
-
-    if not valid_pairs:
-        log.error('No valid (srt, mp3) pairs found in %s', data_dir)
+    metadata_files = find_metadata_files(data_dir)
+    if not metadata_files:
+        log.error('No metadata.csv files found in %s', data_dir)
         return
 
-    if config.WX_LIMIT and len(valid_pairs) > config.WX_LIMIT:
-        random.seed(42)
-        valid_pairs = random.sample(valid_pairs, config.WX_LIMIT)
-        log.info('Sampled %d / %d pairs (WX_LIMIT=%d)', len(valid_pairs), len(all_pairs), config.WX_LIMIT)
+    all_entries: list[MetadataEntry] = []
+    for csv_path in metadata_files:
+        all_entries.extend(parse_metadata(csv_path))
 
+    if not all_entries:
+        log.error('No entries found in %s', data_dir)
+        return
+
+    if config.WX_LIMIT and len(all_entries) > config.WX_LIMIT:
+        random.seed(42)
+        all_entries = random.sample(all_entries, config.WX_LIMIT)
+        log.info('Sampled %d entries (WX_LIMIT=%d)', len(all_entries), config.WX_LIMIT)
+
+    log.info('Processing %d entries', len(all_entries))
     device, compute_type = _resolve_device()
 
     base = config.WX_EXPORT_BASE
@@ -209,7 +205,7 @@ def main():
         log.error('Cannot open output CSV files: %s', e)
         return
 
-    _hdr = ['mp3', 'srt', 'detected_lang', 'wer', 'avg_word_score']
+    _hdr = ['wav_path', 'source', 'index', 'detected_lang', 'wer', 'avg_word_score']
     wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
     wa.writerow(_hdr + ['flags', 'passed'])
     wp.writerow(_hdr)
@@ -221,14 +217,14 @@ def main():
     n_flagged = 0
     wer_scores: list[float] = []
     align_scores: list[float] = []
-    from collections import Counter
     flag_counter: Counter = Counter()
     samples_buf: dict[str, list] = {ft: [] for ft in config.WX_FLAG_ORDER}
 
     try:
-        for r in run(valid_pairs, device, compute_type):
+        for r in run(all_entries, device, compute_type):
             n += 1
-            row_base = [r.mp3_path, r.srt_path, r.detected_lang, _f(r.wer), _f(r.avg_word_score)]
+            row_base = [r.wav_path, r.source, r.index, r.detected_lang,
+                        _f(r.wer), _f(r.avg_word_score)]
             if r.wer is not None:
                 wer_scores.append(r.wer)
             if r.avg_word_score is not None:
@@ -250,8 +246,8 @@ def main():
 
     log.info('')
     log.info('=== WHISPERX QC REPORT ===')
-    log.info('Checked files   : %d', n)
-    log.info('Flagged files   : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
+    log.info('Checked entries : %d', n)
+    log.info('Flagged entries : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
 
     if wer_scores:
         wer_scores.sort()
@@ -275,7 +271,7 @@ def main():
         log.info('')
         log.info('--- %s (%d total, showing up to %d) ---', flag_type, total, config.MAX_PRINT)
         for r in samples:
-            rel = os.path.relpath(r.mp3_path, data_dir)
+            rel = os.path.relpath(r.wav_path, data_dir)
             wer_str = f'WER={r.wer:.2f}' if r.wer is not None else ''
             lang_str = f'lang={r.detected_lang}' if r.detected_lang else ''
             log.warning('[%s] %s  %s %s', flag_type, rel, lang_str, wer_str)

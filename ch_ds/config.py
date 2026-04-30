@@ -1,28 +1,25 @@
-DATA_DIR             = "./row_data"
-LOG_PATH             = "./ch_ds.log"   # путь к файлу логов
+DATA_DIR             = "./dataset"
+LOG_PATH             = "./ch_ds.log"
 
-# --- пути для CSV-результатов (каждый скрипт пишет в свою папку) ---
-# каждый скрипт создаёт три файла: <BASE>_all.csv, <BASE>_passed.csv, <BASE>_flagged.csv
+# --- output paths (each script writes <BASE>_{all,passed,flagged}.csv) ---
 TXT_EXPORT_BASE      = "./results/txt"
 AUDIO_EXPORT_BASE    = "./results/audio"
 LANG_EXPORT_BASE     = "./results/lang"
 WX_EXPORT_BASE       = "./results/wx"
 ALL_EXPORT_BASE      = "./results/all"
-MAX_PRINT            = 10            # сколько примеров показывать на каждый тип флага
+MAX_PRINT            = 10            # max sample entries shown per flag type
 
-CPS_LOW              = 2             # минимум символов/сек (ниже — подозрительно мало текста)
-CPS_HIGH             = 35            # максимум символов/сек (выше — текст не вмещается в аудио)
-TOO_SHORT_LEN        = 2             # текст ≤ этого числа символов считается слишком коротким
-EXCEEDS_AUDIO_SLACK  = 1.0           # допуск в секундах: SRT-конец может выходить за длину mp3
+# --- text checks ---
+TOO_SHORT_LEN        = 2             # sentence ≤ this char count → too_short
 
 # --- audio checks ---
-AUDIO_MIN_DURATION    = 1.0    # секунд: файл короче — слишком короткий
-AUDIO_MAX_DURATION    = 600.0  # секунд: файл длиннее — подозрительно
-AUDIO_MIN_DBFS        = -50.0  # dBFS: тише — слишком тихий сигнал
-AUDIO_CLIPPING_DBFS   = -1.0   # dBFS: громче — клиппинг
-AUDIO_SILENCE_THRESH  = -50.0  # dBFS: порог тишины для подсчёта silent-фреймов
-AUDIO_SILENCE_MAX     = 0.8    # доля тихих фреймов выше которой — проблема
-AUDIO_CHUNK_MS        = 100    # мс: размер чанка для анализа тишины
+AUDIO_MIN_DURATION    = 0.5    # seconds: clip shorter than this → too_short
+AUDIO_MAX_DURATION    = 30.0   # seconds: clip longer than this → too_long
+AUDIO_MIN_DBFS        = -50.0  # dBFS: quieter → too_quiet
+AUDIO_CLIPPING_DBFS   = -1.0   # dBFS: louder → clipping
+AUDIO_SILENCE_THRESH  = -50.0  # dBFS: threshold for silent chunk detection
+AUDIO_SILENCE_MAX     = 0.8    # fraction of silent chunks above which → mostly_silent
+AUDIO_CHUNK_MS        = 100    # ms: chunk size for silence analysis
 
 AUDIO_FLAG_ORDER = [
     'unreadable',
@@ -34,13 +31,13 @@ AUDIO_FLAG_ORDER = [
 ]
 
 # --- language detection ---
-LANG_MODEL        = "medium"    # меньше модель = быстрее, для детекции языка достаточно
+LANG_MODEL        = "medium"
 LANG_DEVICE       = None        # None = auto
-LANG_COMPUTE_TYPE = "float16"   # float16 / int8
-LANG_WINDOW_S     = 30          # размер окна анализа в секундах
-LANG_STRIDE_S     = 15          # шаг окна (< LANG_WINDOW_S = перекрытие, ловим короткие вкрапления)
-LANG_MIN_PROB     = 0.7         # уверенность ниже — детекция ненадёжна, пропускаем окно
-LANG_EXPECTED     = "he"        # ожидаемый язык
+LANG_COMPUTE_TYPE = "float16"
+LANG_WINDOW_S     = 30          # analysis window in seconds
+LANG_STRIDE_S     = 15          # stride (< window = overlap)
+LANG_MIN_PROB     = 0.7         # confidence below this → skip window
+LANG_EXPECTED     = "he"
 
 LANG_FLAG_ORDER = [
     'foreign_segment',
@@ -49,14 +46,14 @@ LANG_FLAG_ORDER = [
 ]
 
 # --- whisperx check ---
-WX_MODEL          = "large-v3"  # faster-whisper model size
-WX_DEVICE         = None        # None = auto (cuda если доступна)
-WX_COMPUTE_TYPE   = "float16"   # float16 / int8
+WX_MODEL          = "large-v3"
+WX_DEVICE         = None        # None = auto
+WX_COMPUTE_TYPE   = "float16"
 WX_LANGUAGE       = "he"
 WX_BATCH_SIZE     = 8
-WX_LIMIT          = 200         # сколько файлов проверять (None = все)
-WX_WER_THRESHOLD  = 0.5         # WER выше — файл проблемный
-WX_ALIGN          = True        # запускать alignment для word-level scores
+WX_LIMIT          = 200         # max entries to check (None = all)
+WX_WER_THRESHOLD  = 0.5
+WX_ALIGN          = True
 
 WX_FLAG_ORDER = [
     'wrong_language',
@@ -65,22 +62,16 @@ WX_FLAG_ORDER = [
 ]
 
 # --- all.py ---
-ALL_RUN_LANG           = True                # запускать детекцию языка (медленно, нужен GPU)
-ALL_TXT_MAX_FLAG_RATIO = 0.05                # макс. доля проблемных SRT-записей (5%)
-# флаги txt которые делают файл плохим независимо от их доли
-ALL_TXT_FATAL_FLAGS    = {'cyrillic', 'html_tag', 'bad_timing', 'empty'}
+ALL_RUN_LANG        = True
+# text flags that always reject an entry regardless of ratio
+ALL_TXT_FATAL_FLAGS = {'cyrillic', 'html_tag', 'empty'}
 
 FLAG_ORDER = [
     'cyrillic',
     'latin',
     'html_tag',
-    'repeated_word',
     'empty',
     'too_short',
-    'bad_timing',
-    'exceeds_audio',
-    'cps_low',
-    'cps_high',
     'punct_only',
     'punct_repeated',
     'punct_space_before',
