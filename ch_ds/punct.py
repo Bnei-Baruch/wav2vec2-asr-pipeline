@@ -1,7 +1,7 @@
 import re
 
 # repeated same mark (,, !! ?? ;;) or wrong dots (.. or ....+) — excludes valid ellipsis ...
-PUNCT_REPEATED     = re.compile(r'([,!?;])\1+|\.{2}(?!\.)|\.{4,}')
+PUNCT_REPEATED     = re.compile(r'([,!?;])\1+|(?<!\.)\.{2}(?!\.)|\.{4,}')
 # space before punctuation; (?!\Z) skips trailing punct at end of string
 PUNCT_SPACE_BEFORE   = re.compile(r'\s[,;.!?](?!\Z)')
 # no space after punctuation; (?<=\S) skips punct at start of string (e.g. ?שלום in Hebrew)
