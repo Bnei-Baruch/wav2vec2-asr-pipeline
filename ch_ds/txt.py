@@ -171,8 +171,8 @@ def check_entry(entry: SrtEntry, mp3_duration: float | None = None) -> list[str]
     if HTML_TAG.search(text):
         flags.append('html_tag')
 
-    if REPEATED_WRD.search(text):
-        flags.append('repeated_word')
+    #if REPEATED_WRD.search(text):
+    #    flags.append('repeated_word')
 
     duration = entry.end_sec - entry.start_sec
     if duration <= 0:

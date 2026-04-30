@@ -7,7 +7,7 @@ PUNCT_SPACE_BEFORE = re.compile(r'\s[,;.!?]')
 # no space after comma/period when followed by a letter: "שלום,כן" or "גמרנו.עכשיו"
 PUNCT_NO_SPACE_AFTER = re.compile(r'[,.](?=[^\s\d"\')\]…])')
 # mojibake: UTF-8 bytes read as Latin-1 — appears as â€ sequences
-PUNCT_MOJIBAKE     = re.compile(r'â€|Ã[€-ÿ]|\x00')
+PUNCT_MOJIBAKE     = re.compile(r'S')#PUNCT_MOJIBAKE     = re.compile(r'â€|Ã[€-ÿ]|\x00')
 # entry with no Hebrew/Latin/digit characters at all
 HEBREW_OR_ALNUM    = re.compile(r'[א-תװ-״\w]', re.UNICODE)
 

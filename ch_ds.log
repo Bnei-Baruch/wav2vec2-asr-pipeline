@@ -1404,3 +1404,71 @@
 2026-04-30 11:48:04  INFO          parsed 489 entries
 2026-04-30 11:48:04  INFO        SRT: HALV0sYB/heb_o_rav_2023-06-22_lesson_rb-1990-26-ein-kadosh_n1_p1.srt  MP3: DrlvJTTK.mp3 (6576.8s)
 2026-04-30 11:48:04  INFO          parsed 491 entries
+2026-04-30 13:55:12  INFO      Starting text QC | data_dir=./row_data | log=./ch_ds.log
+2026-04-30 13:55:12  INFO      Found 1 SRT file(s)
+2026-04-30 13:55:14  INFO        SRT: JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt  MP3: diila9np.mp3 (5092.4s)
+2026-04-30 13:55:14  INFO          parsed 1081 entries
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#122 452.56s–455.04s  None  text="ועוד ועוד מי יודע מה קורה שם,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#148 591.40s–595.56s  None  text="קטן עדיין, מאוד מאוד לא מבין מה קורה,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#211 920.44s–921.88s  None  text="ועוד ועוד."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#222 969.16s–974.76s  None  text="הדור, דור דור. אנחנו רואים שבכל מקום,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#336 1584.24s–1588.28s  None  text="ואחר כך מייצרים את הבגדים שלי נגיד, וכולי וכולי."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#349 1641.36s–1646.20s  None  text="אחר כך איזה כלי רכב וכולי וכולי."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#402 1899.68s–1903.16s  None  text="איזשהו דברים מאוד מאוד מיוחדים."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#445 2117.32s–2124.20s  None  text="מה שעזר אז לנו קצת לשכוח על זה זה התכנית החלל."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#449 2132.84s–2136.36s  None  text="מה הלאה? ראינו שכל זה זה סתם"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#540 2547.04s–2552.96s  None  text="הוא מאוד מאוד רחוק ממה שאני. ההבדל בין הדורות הם כאלה..."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#603 2841.40s–2845.36s  None  text="יוצא שאפילו יום יום אנחנו יותר ויותר תלויים זה בזה."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#694 3325.48s–3326.08s  None  text="שיש... -לא לא,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#751 3556.28s–3559.44s  None  text="הוא מאוד מאוד חדש. כאילו עוזבים אותו,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#767 3626.76s–3636.24s  None  text="יכול להיות שזה באמת איזשהו מעבר למצב לגמרי לגמרי חדש."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#913 4307.92s–4311.48s  None  text="לעשות כל מיני חשבונות. למה התפתחנו כך וכך וכך,"
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#939 4414.60s–4419.44s  None  text="שנה שנה שנה שנה, ככה מתפתח."
+2026-04-30 13:55:14  DEBUG     [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1060 4945.64s–4949.96s  None  text="בחוסר ביטחון, בפחדים, חרדות, וכולי וכולי."
+2026-04-30 13:55:14  DEBUG     [cps_low] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1069 4997.92s–5002.16s  cps=1.4 (min=2)  text="לא די?"
+2026-04-30 13:55:14  INFO      
+2026-04-30 13:55:14  INFO      === TEXT QC REPORT ===
+2026-04-30 13:55:14  INFO      Total entries   : 1081
+2026-04-30 13:55:14  INFO      Missing .mp3    : 0
+2026-04-30 13:55:14  INFO      Flagged entries : 18 (1.7%)
+2026-04-30 13:55:14  INFO      Duplicate text  : 0 extra rows
+2026-04-30 13:55:14  INFO      
+2026-04-30 13:55:14  INFO      --- Flags breakdown ---
+2026-04-30 13:55:14  INFO        repeated_word        17  (1.57%)
+2026-04-30 13:55:14  INFO        cps_low               1  (0.09%)
+2026-04-30 13:55:14  INFO      
+2026-04-30 13:55:14  INFO      --- repeated_word (17 total, showing up to 10) ---
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#122 452.56s–455.04s  None  text="ועוד ועוד מי יודע מה קורה שם,"
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#148 591.40s–595.56s  None  text="קטן עדיין, מאוד מאוד לא מבין מה קורה,"
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#211 920.44s–921.88s  None  text="ועוד ועוד."
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#222 969.16s–974.76s  None  text="הדור, דור דור. אנחנו רואים שבכל מקום,"
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#336 1584.24s–1588.28s  None  text="ואחר כך מייצרים את הבגדים שלי נגיד, וכולי וכולי."
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#349 1641.36s–1646.20s  None  text="אחר כך איזה כלי רכב וכולי וכולי."
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#402 1899.68s–1903.16s  None  text="איזשהו דברים מאוד מאוד מיוחדים."
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#445 2117.32s–2124.20s  None  text="מה שעזר אז לנו קצת לשכוח על זה זה התכנית החלל."
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#449 2132.84s–2136.36s  None  text="מה הלאה? ראינו שכל זה זה סתם"
+2026-04-30 13:55:14  WARNING   [repeated_word] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#540 2547.04s–2552.96s  None  text="הוא מאוד מאוד רחוק ממה שאני. ההבדל בין הדורות הם כאלה..."
+2026-04-30 13:55:14  INFO      
+2026-04-30 13:55:14  INFO      --- cps_low (1 total, showing up to 10) ---
+2026-04-30 13:55:14  WARNING   [cps_low] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1069 4997.92s–5002.16s  cps=1.4 (min=2)  text="לא די?"
+2026-04-30 13:55:14  INFO      Saved: ./results/txt_txt_{all,passed,flagged}.csv
+2026-04-30 13:55:14  INFO      Done.
+2026-04-30 13:57:40  INFO      Starting text QC | data_dir=./row_data | log=./ch_ds.log
+2026-04-30 13:57:40  INFO      Found 1 SRT file(s)
+2026-04-30 13:57:42  INFO        SRT: JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt  MP3: diila9np.mp3 (5092.4s)
+2026-04-30 13:57:42  INFO          parsed 1081 entries
+2026-04-30 13:57:42  DEBUG     [cps_low] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1069 4997.92s–5002.16s  cps=1.4 (min=2)  text="לא די?"
+2026-04-30 13:57:42  INFO      
+2026-04-30 13:57:42  INFO      === TEXT QC REPORT ===
+2026-04-30 13:57:42  INFO      Total entries   : 1081
+2026-04-30 13:57:42  INFO      Missing .mp3    : 0
+2026-04-30 13:57:42  INFO      Flagged entries : 1 (0.1%)
+2026-04-30 13:57:42  INFO      Duplicate text  : 0 extra rows
+2026-04-30 13:57:42  INFO      
+2026-04-30 13:57:42  INFO      --- Flags breakdown ---
+2026-04-30 13:57:42  INFO        cps_low               1  (0.09%)
+2026-04-30 13:57:42  INFO      
+2026-04-30 13:57:42  INFO      --- cps_low (1 total, showing up to 10) ---
+2026-04-30 13:57:42  WARNING   [cps_low] JmPywLDH/heb_o_rav_2011-12-27_program_haim-hadashim_n1.srt entry#1069 4997.92s–5002.16s  cps=1.4 (min=2)  text="לא די?"
+2026-04-30 13:57:42  INFO      Saved: ./results/txt_txt_{all,passed,flagged}.csv
+2026-04-30 13:57:42  INFO      Done.
