@@ -1,4 +1,4 @@
-DATA_DIR             = "/Volumes/Data/wav2vec2-asr-pipeline/row_data"
+DATA_DIR             = "./row_data"
 LOG_PATH             = "./ch_ds.log"   # путь к файлу логов
 
 # --- пути для CSV-результатов (каждый скрипт пишет в свою папку) ---
