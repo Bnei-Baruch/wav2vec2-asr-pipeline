@@ -16,3 +16,4 @@ tensorboard
 transformers>=4.39
 datasets
 jiwer
+whisperx
