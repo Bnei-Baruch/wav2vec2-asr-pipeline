@@ -199,97 +199,111 @@ def main():
     pairs = find_pairs(data_dir)
     if not pairs:
         log.error('No .srt files found in %s', data_dir)
-        return
+        return None
 
     log.info('Found %d SRT file(s)', len(pairs))
 
-    all_entries: list[SrtEntry] = []
+    base = config.TXT_EXPORT_BASE
+    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
+    n = 0
+    n_flagged = 0
     missing_mp3 = 0
+    flag_counter: Counter = Counter()
+    text_counter: Counter = Counter()
+    samples_buf: dict[str, list] = {ft: [] for ft in config.FLAG_ORDER}
 
-    for srt_path, mp3_path in pairs:
-        rel_srt = os.path.relpath(srt_path, data_dir)
+    try:
+        fa = open(f'{base}_txt_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}_txt_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}_txt_flagged.csv', 'w', newline='', encoding='utf-8')
+    except OSError as e:
+        log.error('Cannot open output CSV files: %s', e)
+        return None
 
-        if mp3_path is None:
-            log.warning('No .mp3 found alongside: %s', rel_srt)
-            missing_mp3 += 1
-            mp3_dur = None
-        else:
-            mp3_dur = _mp3_duration(mp3_path)
-            dur_str = f'{mp3_dur:.1f}s' if mp3_dur else 'duration unknown'
-            log.info('  SRT: %s  MP3: %s (%s)', rel_srt, os.path.basename(mp3_path), dur_str)
+    wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
+    wa.writerow(['source', 'index', 'start_sec', 'end_sec', 'text', 'flags', 'passed'])
+    wp.writerow(['source', 'index', 'start_sec', 'end_sec', 'text'])
+    wf.writerow(['source', 'index', 'start_sec', 'end_sec', 'text', 'flags'])
 
-        try:
-            entries = parse_srt(srt_path)
-        except Exception as e:
-            log.error('Failed to parse %s: %s', rel_srt, e)
-            continue
-        log.info('    parsed %d entries', len(entries))
-        for entry in entries:
-            entry._mp3_dur = mp3_dur
-        all_entries.extend(entries)
+    try:
+        for srt_path, mp3_path in pairs:
+            rel_srt = os.path.relpath(srt_path, data_dir)
 
-    n = len(all_entries)
+            if mp3_path is None:
+                log.warning('No .mp3 found alongside: %s', rel_srt)
+                missing_mp3 += 1
+                mp3_dur = None
+            else:
+                mp3_dur = _mp3_duration(mp3_path)
+                dur_str = f'{mp3_dur:.1f}s' if mp3_dur else 'duration unknown'
+                log.info('  SRT: %s  MP3: %s (%s)', rel_srt, os.path.basename(mp3_path), dur_str)
+
+            try:
+                entries = parse_srt(srt_path)
+            except Exception as e:
+                log.error('Failed to parse %s: %s', rel_srt, e)
+                continue
+
+            log.info('    parsed %d entries', len(entries))
+
+            for entry in entries:
+                n += 1
+                text_counter[entry.text] += 1
+
+                try:
+                    flags = check_entry(entry, mp3_dur)
+                except Exception as e:
+                    log.error('check_entry failed for %s entry#%d: %s',
+                               entry.source, entry.index, e)
+                    continue
+
+                flag_counter.update(flags)
+                row = [entry.source, entry.index,
+                       f'{entry.start_sec:.3f}', f'{entry.end_sec:.3f}', entry.text]
+                if flags:
+                    n_flagged += 1
+                    wa.writerow(row + ['|'.join(flags), 'no'])
+                    wf.writerow(row + ['|'.join(flags)])
+                    for f in flags:
+                        log.debug(_flag_detail(entry, f, data_dir))
+                        if len(samples_buf.get(f, [])) < config.MAX_PRINT:
+                            samples_buf.setdefault(f, []).append((entry, flags))
+                else:
+                    wa.writerow(row + ['', 'yes'])
+                    wp.writerow(row)
+    finally:
+        fa.close(); fp.close(); ff.close()
+
     if n == 0:
         log.error('No entries parsed — check SRT format')
-        return
-
-    flag_counter: Counter = Counter()
-    flagged: list[tuple[SrtEntry, list[str]]] = []
-    text_counter: Counter = Counter()
-
-    for entry in all_entries:
-        text_counter[entry.text] += 1
-        try:
-            flags = check_entry(entry, getattr(entry, '_mp3_dur', None))
-        except Exception as e:
-            log.error('check_entry failed for %s entry#%d: %s', entry.source, entry.index, e)
-            continue
-        if flags:
-            flag_counter.update(flags)
-            flagged.append((entry, flags))
-            for flag in flags:
-                log.debug(_flag_detail(entry, flag, data_dir))
+        return None
 
     dup_texts = sum(c - 1 for c in text_counter.values() if c > 1)
 
-    # — summary —
     log.info('')
     log.info('=== TEXT QC REPORT ===')
     log.info('Total entries   : %d', n)
     log.info('Missing .mp3    : %d', missing_mp3)
-    log.info('Flagged entries : %d (%.1f%%)', len(flagged), 100 * len(flagged) / n)
+    log.info('Flagged entries : %d (%.1f%%)', n_flagged, 100 * n_flagged / n)
     log.info('Duplicate text  : %d extra rows', dup_texts)
     log.info('')
     log.info('--- Flags breakdown ---')
     for flag, count in flag_counter.most_common():
         log.info('  %-16s %6d  (%.2f%%)', flag, count, 100 * count / n)
 
-    # — per-flag samples (WARNING level so they appear in console too) —
     for flag_type in config.FLAG_ORDER:
-        samples = [(e, f) for e, f in flagged if flag_type in f]
+        samples = samples_buf.get(flag_type, [])
         if not samples:
             continue
+        total = flag_counter.get(flag_type, 0)
         log.info('')
-        log.info('--- %s (%d total, showing up to %d) ---', flag_type, len(samples), config.MAX_PRINT)
-        for entry, _ in samples[:config.MAX_PRINT]:
+        log.info('--- %s (%d total, showing up to %d) ---', flag_type, total, config.MAX_PRINT)
+        for entry, _ in samples:
             log.warning(_flag_detail(entry, flag_type, data_dir))
 
-    if config.EXPORT_PATH:
-        try:
-            with open(config.EXPORT_PATH, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow(['source', 'index', 'start_sec', 'end_sec', 'text', 'flags'])
-                for entry, flags in flagged:
-                    writer.writerow([
-                        entry.source, entry.index,
-                        f'{entry.start_sec:.3f}', f'{entry.end_sec:.3f}',
-                        entry.text, '|'.join(flags),
-                    ])
-            log.info('Exported %d flagged entries -> %s', len(flagged), config.EXPORT_PATH)
-        except OSError as e:
-            log.error('Failed to write CSV to %s: %s', config.EXPORT_PATH, e)
-
+    log.info('Saved: %s_txt_{all,passed,flagged}.csv', base)
     log.info('Done.')
+    return None
 
 
 if __name__ == '__main__':

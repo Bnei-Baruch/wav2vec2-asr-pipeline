@@ -5,15 +5,22 @@ For each window: run faster-whisper language detection (no transcription).
 Flags windows where detected language != LANG_EXPECTED.
 Catches Russian/other inclusions anywhere in the file.
 """
+from __future__ import annotations
+
 import csv
 import logging
 import os
 import tempfile
+from collections import Counter
 from dataclasses import dataclass, field
 
 import numpy as np
 import soundfile as sf
 import torch
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
 from .audio import find_mp3_files
@@ -31,8 +38,13 @@ def _setup_logger() -> logging.Logger:
     fh = logging.FileHandler(config.LOG_PATH, encoding='utf-8')
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
+    base, ext = os.path.splitext(config.LOG_PATH)
+    eh = logging.FileHandler(f'{base}_errors{ext}', encoding='utf-8')
+    eh.setLevel(logging.WARNING)
+    eh.setFormatter(fmt)
     logger.addHandler(ch)
     logger.addHandler(fh)
+    logger.addHandler(eh)
     return logger
 
 
@@ -172,34 +184,71 @@ def main():
     device, compute_type = _resolve_device()
     log.info('Loading model: %s  device=%s  compute_type=%s', config.LANG_MODEL, device, compute_type)
 
-    from faster_whisper import WhisperModel
-    model = WhisperModel(config.LANG_MODEL, device=device, compute_type=compute_type)
+    try:
+        from faster_whisper import WhisperModel
+        model = WhisperModel(config.LANG_MODEL, device=device, compute_type=compute_type)
+    except Exception as e:
+        log.error('Failed to load WhisperModel: %s', e)
+        return
 
-    results: list[FileResult] = []
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        for i, mp3_path in enumerate(mp3_files):
-            rel = os.path.relpath(mp3_path, data_dir)
-            log.info('[%d/%d] %s', i + 1, len(mp3_files), rel)
-            r = analyze_file(mp3_path, model, tmp_dir)
-            results.append(r)
+    base = config.LANG_EXPORT_BASE
+    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
+    n = 0
+    n_flagged = 0
+    n_foreign_windows = 0
+    lang_counter: Counter = Counter()
+    samples_buf: list = []
 
-            if r.foreign_windows:
-                for w in r.foreign_windows:
-                    log.warning('  [%s] %.1fs–%.1fs  lang=%s  prob=%.2f',
-                                rel, w.start_s, w.end_s, w.language, w.probability)
+    try:
+        fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
+    except OSError as e:
+        log.error('Cannot open output CSV files: %s', e)
+        return
 
-    n = len(results)
-    flagged = [r for r in results if r.flags]
-    all_foreign = [w for r in results for w in r.foreign_windows]
+    wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
+    wa.writerow(['path', 'duration_s', 'windows', 'foreign_windows', 'flags', 'passed'])
+    wp.writerow(['path', 'duration_s', 'windows'])
+    wf.writerow(['file', 'start_s', 'end_s', 'language', 'probability'])
 
-    from collections import Counter
-    lang_counter = Counter(w.language for w in all_foreign)
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            for mp3_path in tqdm(mp3_files, desc='lang QC', unit='file'):
+                rel = os.path.relpath(mp3_path, data_dir)
+                try:
+                    r = analyze_file(mp3_path, model, tmp_dir)
+                except Exception as e:
+                    log.error('analyze_file failed for %s: %s', rel, e)
+                    continue
+
+                n += 1
+                dur = f'{r.duration_s:.2f}' if r.duration_s is not None else ''
+
+                if r.flags:
+                    n_flagged += 1
+                    wa.writerow([r.path, dur, len(r.windows), len(r.foreign_windows),
+                                 '|'.join(r.flags), 'no'])
+                    for w in r.foreign_windows:
+                        n_foreign_windows += 1
+                        lang_counter[w.language] += 1
+                        wf.writerow([r.path, f'{w.start_s:.2f}', f'{w.end_s:.2f}',
+                                     w.language, f'{w.probability:.4f}'])
+                        log.warning('  [%s] %.1fs–%.1fs  lang=%s  prob=%.2f',
+                                    rel, w.start_s, w.end_s, w.language, w.probability)
+                    if len(samples_buf) < config.MAX_PRINT:
+                        samples_buf.append(r)
+                else:
+                    wa.writerow([r.path, dur, len(r.windows), 0, '', 'yes'])
+                    wp.writerow([r.path, dur, len(r.windows)])
+    finally:
+        fa.close(); fp.close(); ff.close()
 
     log.info('')
     log.info('=== LANGUAGE DETECTION REPORT ===')
     log.info('Total files         : %d', n)
-    log.info('Files with foreign  : %d (%.1f%%)', len(flagged), 100 * len(flagged) / n if n else 0)
-    log.info('Foreign windows     : %d', len(all_foreign))
+    log.info('Files with foreign  : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
+    log.info('Foreign windows     : %d', n_foreign_windows)
 
     if lang_counter:
         log.info('')
@@ -209,7 +258,7 @@ def main():
 
     log.info('')
     log.info('--- Files with foreign segments (showing up to %d) ---', config.MAX_PRINT)
-    for r in flagged[:config.MAX_PRINT]:
+    for r in samples_buf:
         rel = os.path.relpath(r.path, data_dir)
         segments_str = '  '.join(
             f'{w.start_s:.0f}–{w.end_s:.0f}s:{w.language}({w.probability:.2f})'
@@ -217,17 +266,7 @@ def main():
         )
         log.warning('%s  →  %s', rel, segments_str)
 
-    if config.EXPORT_PATH:
-        export_path = config.EXPORT_PATH.replace('.csv', '_lang.csv')
-        with open(export_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['file', 'start_s', 'end_s', 'language', 'probability'])
-            for r in results:
-                for w in r.foreign_windows:
-                    writer.writerow([r.path, f'{w.start_s:.2f}', f'{w.end_s:.2f}',
-                                     w.language, f'{w.probability:.4f}'])
-        log.info('Exported %d foreign windows -> %s', len(all_foreign), export_path)
-
+    log.info('Saved: %s_{all,passed,flagged}.csv', base)
     log.info('Done.')
 
 

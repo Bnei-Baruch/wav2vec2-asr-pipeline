@@ -1,6 +1,13 @@
 DATA_DIR             = "/Volumes/Data/wav2vec2-asr-pipeline/row_data"
-EXPORT_PATH          = "./result.csv"          # путь для CSV с проблемными записями, None — не экспортировать
-LOG_PATH             = "./ch_ds.log" # путь к файлу логов
+LOG_PATH             = "./ch_ds.log"   # путь к файлу логов
+
+# --- пути для CSV-результатов (каждый скрипт пишет в свою папку) ---
+# каждый скрипт создаёт три файла: <BASE>_all.csv, <BASE>_passed.csv, <BASE>_flagged.csv
+TXT_EXPORT_BASE      = "./results/txt"
+AUDIO_EXPORT_BASE    = "./results/audio"
+LANG_EXPORT_BASE     = "./results/lang"
+WX_EXPORT_BASE       = "./results/wx"
+ALL_EXPORT_BASE      = "./results/all"
 MAX_PRINT            = 10            # сколько примеров показывать на каждый тип флага
 
 CPS_LOW              = 2             # минимум символов/сек (ниже — подозрительно мало текста)
@@ -58,7 +65,6 @@ WX_FLAG_ORDER = [
 ]
 
 # --- all.py ---
-ALL_OUTPUT_PATH        = "./good_files.csv"  # куда писать прошедшие все проверки
 ALL_RUN_LANG           = True                # запускать детекцию языка (медленно, нужен GPU)
 ALL_TXT_MAX_FLAG_RATIO = 0.05                # макс. доля проблемных SRT-записей (5%)
 # флаги txt которые делают файл плохим независимо от их доли

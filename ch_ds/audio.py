@@ -1,7 +1,14 @@
+from __future__ import annotations
+
 import csv
 import logging
 import os
 from dataclasses import dataclass, field
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
 
@@ -21,8 +28,14 @@ def _setup_logger() -> logging.Logger:
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
 
+    base, ext = os.path.splitext(config.LOG_PATH)
+    eh = logging.FileHandler(f'{base}_errors{ext}', encoding='utf-8')
+    eh.setLevel(logging.WARNING)
+    eh.setFormatter(fmt)
+
     logger.addHandler(ch)
     logger.addHandler(fh)
+    logger.addHandler(eh)
     return logger
 
 
@@ -127,39 +140,77 @@ def main():
 
     log.info('Found %d MP3 file(s)', len(mp3_files))
 
-    results: list[AudioResult] = []
-    for path in mp3_files:
-        rel = os.path.relpath(path, data_dir)
-        r = check_mp3(path)
-        results.append(r)
+    base = config.AUDIO_EXPORT_BASE
+    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
+    n = 0
+    n_flagged = 0
+    durations: list[float] = []
+    dbfs_vals: list[float] = []
+    flag_counter: Counter = Counter()
+    samples_buf: dict[str, list] = {ft: [] for ft in config.AUDIO_FLAG_ORDER}
 
-        if r.flags:
-            for flag in r.flags:
-                log.debug(_result_detail(r, flag, data_dir))
-            log.info('  FLAGGED %s  flags=%s', rel, r.flags)
-        else:
-            log.debug('  OK  %s  dur=%.1fs  dBFS=%.1f  silence=%.0f%%',
-                      rel, r.duration_s or 0, r.dbfs or 0, (r.silence_ratio or 0) * 100)
+    try:
+        fa = open(f'{base}_audio_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}_audio_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}_audio_flagged.csv', 'w', newline='', encoding='utf-8')
+    except OSError as e:
+        log.error('Cannot open output CSV files: %s', e)
+        return
 
-    n = len(results)
-    flagged = [(r, r.flags) for r in results if r.flags]
-    from collections import Counter
-    flag_counter: Counter = Counter(f for _, flags in flagged for f in flags)
+    _hdr = ['path', 'duration_s', 'dbfs', 'silence_ratio']
+    wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
+    wa.writerow(_hdr + ['flags', 'passed'])
+    wp.writerow(_hdr)
+    wf.writerow(['path', 'duration_s', 'dbfs', 'max_dbfs', 'silence_ratio',
+                 'channels', 'frame_rate', 'flags'])
 
-    durations   = [r.duration_s for r in results if r.duration_s is not None]
-    dbfs_vals   = [r.dbfs       for r in results if r.dbfs is not None]
+    def _f(v, fmt='.2f'): return format(v, fmt) if v is not None else ''
+
+    try:
+        for path in tqdm(mp3_files, desc='audio QC', unit='file'):
+            rel = os.path.relpath(path, data_dir)
+            try:
+                r = check_mp3(path)
+            except Exception as e:
+                log.error('check_mp3 failed for %s: %s', rel, e)
+                continue
+
+            n += 1
+            if r.duration_s is not None:
+                durations.append(r.duration_s)
+            if r.dbfs is not None:
+                dbfs_vals.append(r.dbfs)
+
+            row_base = [r.path, _f(r.duration_s), _f(r.dbfs, '.1f'), _f(r.silence_ratio, '.3f')]
+            if r.flags:
+                n_flagged += 1
+                flag_counter.update(r.flags)
+                wa.writerow(row_base + ['|'.join(r.flags), 'no'])
+                wf.writerow([r.path, _f(r.duration_s), _f(r.dbfs, '.1f'), _f(r.max_dbfs, '.1f'),
+                             _f(r.silence_ratio, '.3f'), r.channels, r.frame_rate, '|'.join(r.flags)])
+                for flag in r.flags:
+                    log.debug(_result_detail(r, flag, data_dir))
+                    if len(samples_buf.get(flag, [])) < config.MAX_PRINT:
+                        samples_buf.setdefault(flag, []).append(r)
+                log.info('  FLAGGED %s  flags=%s', rel, r.flags)
+            else:
+                wa.writerow(row_base + ['', 'yes'])
+                wp.writerow(row_base)
+                log.debug('  OK  %s  dur=%.1fs  dBFS=%.1f  silence=%.0f%%',
+                          rel, r.duration_s or 0, r.dbfs or 0, (r.silence_ratio or 0) * 100)
+    finally:
+        fa.close(); fp.close(); ff.close()
 
     log.info('')
     log.info('=== AUDIO QC REPORT ===')
     log.info('Total files     : %d', n)
-    log.info('Flagged files   : %d (%.1f%%)', len(flagged), 100 * len(flagged) / n if n else 0)
+    log.info('Flagged files   : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
 
     if durations:
         durations.sort()
         p = lambda q: durations[int(len(durations) * q / 100)]
-        total_h = sum(durations) / 3600
         log.info('Duration        : min=%.1fs  p50=%.1fs  p95=%.1fs  max=%.1fs  total=%.1fh',
-                 durations[0], p(50), p(95), durations[-1], total_h)
+                 durations[0], p(50), p(95), durations[-1], sum(durations) / 3600)
 
     if dbfs_vals:
         dbfs_vals.sort()
@@ -172,28 +223,16 @@ def main():
         log.info('  %-16s %6d  (%.2f%%)', flag, count, 100 * count / n if n else 0)
 
     for flag_type in config.AUDIO_FLAG_ORDER:
-        samples = [(r, f) for r, f in flagged if flag_type in f]
+        samples = samples_buf.get(flag_type, [])
         if not samples:
             continue
+        total = flag_counter.get(flag_type, 0)
         log.info('')
-        log.info('--- %s (%d total, showing up to %d) ---', flag_type, len(samples), config.MAX_PRINT)
-        for r, _ in samples[:config.MAX_PRINT]:
+        log.info('--- %s (%d total, showing up to %d) ---', flag_type, total, config.MAX_PRINT)
+        for r in samples:
             log.warning(_result_detail(r, flag_type, data_dir))
 
-    if config.EXPORT_PATH:
-        export_path = config.EXPORT_PATH.replace('.csv', '_audio.csv')
-        with open(export_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['path', 'duration_s', 'dbfs', 'max_dbfs', 'silence_ratio',
-                             'channels', 'frame_rate', 'flags'])
-            for r, _ in flagged:
-                writer.writerow([
-                    r.path, r.duration_s, r.dbfs, r.max_dbfs,
-                    f'{r.silence_ratio:.3f}' if r.silence_ratio is not None else '',
-                    r.channels, r.frame_rate, '|'.join(r.flags),
-                ])
-        log.info('Exported %d flagged files -> %s', len(flagged), export_path)
-
+    log.info('Saved: %s_audio_{all,passed,flagged}.csv', base)
     log.info('Done.')
 
 

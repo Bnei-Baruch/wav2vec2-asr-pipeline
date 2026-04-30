@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import logging
 import os
@@ -7,6 +9,10 @@ import unicodedata
 from dataclasses import dataclass, field
 
 import torch
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(it, **kw): return it  # type: ignore[misc]
 
 from . import config
 from .txt import find_pairs, parse_srt
@@ -27,8 +33,14 @@ def _setup_logger() -> logging.Logger:
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
 
+    base, ext = os.path.splitext(config.LOG_PATH)
+    eh = logging.FileHandler(f'{base}_errors{ext}', encoding='utf-8')
+    eh.setLevel(logging.WARNING)
+    eh.setFormatter(fmt)
+
     logger.addHandler(ch)
     logger.addHandler(fh)
+    logger.addHandler(eh)
     return logger
 
 
@@ -104,12 +116,17 @@ def run(pairs: list[tuple[str, str]], device: str, compute_type: str) -> list[Wx
 
     results: list[WxResult] = []
 
-    for i, (srt_path, mp3_path) in enumerate(pairs):
+    for srt_path, mp3_path in tqdm(pairs, desc='whisperx QC', unit='file'):
         rel = os.path.relpath(mp3_path, config.DATA_DIR)
-        log.info('[%d/%d] %s', i + 1, len(pairs), rel)
 
         r = WxResult(mp3_path=mp3_path, srt_path=srt_path)
-        r.reference = _srt_ground_truth(srt_path)
+        try:
+            r.reference = _srt_ground_truth(srt_path)
+        except Exception as e:
+            log.error('Failed to read SRT ground truth for %s: %s', rel, e)
+            r.flags.append('empty_transcription')
+            results.append(r)
+            continue
 
         try:
             audio = whisperx.load_audio(mp3_path)
@@ -165,7 +182,6 @@ def main():
              data_dir, config.WX_LIMIT, config.LOG_PATH)
 
     all_pairs = find_pairs(data_dir)
-    # keep only pairs that have both srt and mp3
     valid_pairs = [(srt, mp3) for srt, mp3 in all_pairs if mp3 is not None]
     skipped = len(all_pairs) - len(valid_pairs)
     if skipped:
@@ -181,20 +197,61 @@ def main():
         log.info('Sampled %d / %d pairs (WX_LIMIT=%d)', len(valid_pairs), len(all_pairs), config.WX_LIMIT)
 
     device, compute_type = _resolve_device()
-    results = run(valid_pairs, device, compute_type)
 
-    n = len(results)
-    flagged = [r for r in results if r.flags]
-    wer_scores = [r.wer for r in results if r.wer is not None]
-    align_scores = [r.avg_word_score for r in results if r.avg_word_score is not None]
+    base = config.WX_EXPORT_BASE
+    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
 
+    try:
+        fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
+    except OSError as e:
+        log.error('Cannot open output CSV files: %s', e)
+        return
+
+    _hdr = ['mp3', 'srt', 'detected_lang', 'wer', 'avg_word_score']
+    wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
+    wa.writerow(_hdr + ['flags', 'passed'])
+    wp.writerow(_hdr)
+    wf.writerow(_hdr + ['flags', 'reference', 'hypothesis'])
+
+    def _f(v, fmt='.4f'): return format(v, fmt) if v is not None else ''
+
+    n = 0
+    n_flagged = 0
+    wer_scores: list[float] = []
+    align_scores: list[float] = []
     from collections import Counter
-    flag_counter = Counter(f for r in flagged for f in r.flags)
+    flag_counter: Counter = Counter()
+    samples_buf: dict[str, list] = {ft: [] for ft in config.WX_FLAG_ORDER}
+
+    try:
+        for r in run(valid_pairs, device, compute_type):
+            n += 1
+            row_base = [r.mp3_path, r.srt_path, r.detected_lang, _f(r.wer), _f(r.avg_word_score)]
+            if r.wer is not None:
+                wer_scores.append(r.wer)
+            if r.avg_word_score is not None:
+                align_scores.append(r.avg_word_score)
+
+            if r.flags:
+                n_flagged += 1
+                flag_counter.update(r.flags)
+                wa.writerow(row_base + ['|'.join(r.flags), 'no'])
+                wf.writerow(row_base + ['|'.join(r.flags), r.reference or '', r.hypothesis or ''])
+                for ft in r.flags:
+                    if len(samples_buf.get(ft, [])) < config.MAX_PRINT:
+                        samples_buf.setdefault(ft, []).append(r)
+            else:
+                wa.writerow(row_base + ['', 'yes'])
+                wp.writerow(row_base)
+    finally:
+        fa.close(); fp.close(); ff.close()
 
     log.info('')
     log.info('=== WHISPERX QC REPORT ===')
     log.info('Checked files   : %d', n)
-    log.info('Flagged files   : %d (%.1f%%)', len(flagged), 100 * len(flagged) / n if n else 0)
+    log.info('Flagged files   : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
 
     if wer_scores:
         wer_scores.sort()
@@ -211,12 +268,13 @@ def main():
         log.info('  %-22s %6d  (%.2f%%)', flag, count, 100 * count / n if n else 0)
 
     for flag_type in config.WX_FLAG_ORDER:
-        samples = [r for r in flagged if flag_type in r.flags]
+        samples = samples_buf.get(flag_type, [])
         if not samples:
             continue
+        total = flag_counter.get(flag_type, 0)
         log.info('')
-        log.info('--- %s (%d total, showing up to %d) ---', flag_type, len(samples), config.MAX_PRINT)
-        for r in samples[:config.MAX_PRINT]:
+        log.info('--- %s (%d total, showing up to %d) ---', flag_type, total, config.MAX_PRINT)
+        for r in samples:
             rel = os.path.relpath(r.mp3_path, data_dir)
             wer_str = f'WER={r.wer:.2f}' if r.wer is not None else ''
             lang_str = f'lang={r.detected_lang}' if r.detected_lang else ''
@@ -225,22 +283,7 @@ def main():
                 log.warning('  ref: %s', r.reference[:120])
                 log.warning('  hyp: %s', r.hypothesis[:120])
 
-    if config.EXPORT_PATH:
-        export_path = config.EXPORT_PATH.replace('.csv', '_wx.csv')
-        with open(export_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['mp3', 'srt', 'detected_lang', 'wer', 'avg_word_score', 'flags',
-                             'reference', 'hypothesis'])
-            for r in flagged:
-                writer.writerow([
-                    r.mp3_path, r.srt_path, r.detected_lang,
-                    f'{r.wer:.4f}' if r.wer is not None else '',
-                    f'{r.avg_word_score:.4f}' if r.avg_word_score is not None else '',
-                    '|'.join(r.flags),
-                    r.reference or '', r.hypothesis or '',
-                ])
-        log.info('Exported %d flagged entries -> %s', len(flagged), export_path)
-
+    log.info('Saved: %s_{all,passed,flagged}.csv', base)
     log.info('Done.')
 
 
