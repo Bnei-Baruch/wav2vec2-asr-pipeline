@@ -129,14 +129,16 @@ def main():
         fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
         fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
         ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
+        fl = open(f'{base}_latin.csv',   'w', newline='', encoding='utf-8')
     except OSError as e:
         log.error('Cannot open output CSV files: %s', e)
         return
 
-    wa, wp, wf = csv.writer(fa), csv.writer(fp), csv.writer(ff)
+    wa, wp, wf, wl = csv.writer(fa), csv.writer(fp), csv.writer(ff), csv.writer(fl)
     wa.writerow(['source', 'index', 'wav_path', 'text', 'flags', 'passed'])
     wp.writerow(['source', 'index', 'wav_path', 'text'])
     wf.writerow(['source', 'index', 'wav_path', 'text', 'flags'])
+    wl.writerow(['source', 'index', 'wav_path', 'text'])
 
     try:
         for csv_path in metadata_files:
@@ -156,7 +158,14 @@ def main():
 
                 flag_counter.update(flags)
                 row = [entry.source, entry.index, entry.wav_path, entry.text]
-                if flags:
+
+                if 'latin' in flags:
+                    wl.writerow(row)
+
+                # latin is a soft flag — entry still passes unless other flags present
+                reject_flags = [f for f in flags if f != 'latin']
+
+                if reject_flags:
                     n_flagged += 1
                     wa.writerow(row + ['|'.join(flags), 'no'])
                     wf.writerow(row + ['|'.join(flags)])
@@ -165,10 +174,10 @@ def main():
                         if len(samples_buf.get(f, [])) < config.MAX_PRINT:
                             samples_buf.setdefault(f, []).append(entry)
                 else:
-                    wa.writerow(row + ['', 'yes'])
+                    wa.writerow(row + ['|'.join(flags) if flags else '', 'yes'])
                     wp.writerow(row)
     finally:
-        fa.close(); fp.close(); ff.close()
+        fa.close(); fp.close(); ff.close(); fl.close()
 
     if n == 0:
         log.error('No entries found — check metadata.csv format')
@@ -198,7 +207,7 @@ def main():
                         flag_type, os.path.relpath(entry.source, data_dir),
                         entry.index, entry.text[:80])
 
-    log.info('Saved: %s_{all,passed,flagged}.csv', base)
+    log.info('Saved: %s_{all,passed,flagged,latin}.csv', base)
     log.info('Done.')
 
 
