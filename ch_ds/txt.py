@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import logging
 import os
@@ -29,8 +31,15 @@ def _setup_logger() -> logging.Logger:
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
 
+    base, ext = os.path.splitext(config.LOG_PATH)
+    err_path = f'{base}_errors{ext}'
+    eh = logging.FileHandler(err_path, encoding='utf-8')
+    eh.setLevel(logging.WARNING)
+    eh.setFormatter(fmt)
+
     logger.addHandler(ch)
     logger.addHandler(fh)
+    logger.addHandler(eh)
     return logger
 
 
@@ -209,7 +218,11 @@ def main():
             dur_str = f'{mp3_dur:.1f}s' if mp3_dur else 'duration unknown'
             log.info('  SRT: %s  MP3: %s (%s)', rel_srt, os.path.basename(mp3_path), dur_str)
 
-        entries = parse_srt(srt_path)
+        try:
+            entries = parse_srt(srt_path)
+        except Exception as e:
+            log.error('Failed to parse %s: %s', rel_srt, e)
+            continue
         log.info('    parsed %d entries', len(entries))
         for entry in entries:
             entry._mp3_dur = mp3_dur
@@ -226,7 +239,11 @@ def main():
 
     for entry in all_entries:
         text_counter[entry.text] += 1
-        flags = check_entry(entry, getattr(entry, '_mp3_dur', None))
+        try:
+            flags = check_entry(entry, getattr(entry, '_mp3_dur', None))
+        except Exception as e:
+            log.error('check_entry failed for %s entry#%d: %s', entry.source, entry.index, e)
+            continue
         if flags:
             flag_counter.update(flags)
             flagged.append((entry, flags))
@@ -258,16 +275,19 @@ def main():
             log.warning(_flag_detail(entry, flag_type, data_dir))
 
     if config.EXPORT_PATH:
-        with open(config.EXPORT_PATH, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['source', 'index', 'start_sec', 'end_sec', 'text', 'flags'])
-            for entry, flags in flagged:
-                writer.writerow([
-                    entry.source, entry.index,
-                    f'{entry.start_sec:.3f}', f'{entry.end_sec:.3f}',
-                    entry.text, '|'.join(flags),
-                ])
-        log.info('Exported %d flagged entries -> %s', len(flagged), config.EXPORT_PATH)
+        try:
+            with open(config.EXPORT_PATH, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['source', 'index', 'start_sec', 'end_sec', 'text', 'flags'])
+                for entry, flags in flagged:
+                    writer.writerow([
+                        entry.source, entry.index,
+                        f'{entry.start_sec:.3f}', f'{entry.end_sec:.3f}',
+                        entry.text, '|'.join(flags),
+                    ])
+            log.info('Exported %d flagged entries -> %s', len(flagged), config.EXPORT_PATH)
+        except OSError as e:
+            log.error('Failed to write CSV to %s: %s', config.EXPORT_PATH, e)
 
     log.info('Done.')
 
