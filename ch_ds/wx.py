@@ -87,12 +87,14 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
 
 
 def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[WxResult]:
-    try:
-        from omegaconf.listconfig import ListConfig
-        from omegaconf.dictconfig import DictConfig
-        torch.serialization.add_safe_globals([ListConfig, DictConfig])
-    except Exception:
-        pass
+    # pyannote VAD checkpoints contain omegaconf objects; patch torch.load to allow them
+    import functools
+    _orig_load = torch.load
+    @functools.wraps(_orig_load)
+    def _load_compat(*args, **kwargs):
+        kwargs.setdefault('weights_only', False)
+        return _orig_load(*args, **kwargs)
+    torch.load = _load_compat
 
     import whisperx
 
