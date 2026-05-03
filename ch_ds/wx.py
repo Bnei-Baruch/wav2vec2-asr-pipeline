@@ -87,12 +87,12 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
 
 
 def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[WxResult]:
-    # pyannote VAD checkpoints contain omegaconf objects; patch torch.load to allow them
+    # pyannote VAD checkpoints contain omegaconf objects incompatible with weights_only=True
     import functools
     _orig_load = torch.load
     @functools.wraps(_orig_load)
     def _load_compat(*args, **kwargs):
-        kwargs.setdefault('weights_only', False)
+        kwargs['weights_only'] = False
         return _orig_load(*args, **kwargs)
     torch.load = _load_compat
 
