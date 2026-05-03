@@ -87,6 +87,13 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
 
 
 def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[WxResult]:
+    try:
+        from omegaconf.listconfig import ListConfig
+        from omegaconf.dictconfig import DictConfig
+        torch.serialization.add_safe_globals([ListConfig, DictConfig])
+    except Exception:
+        pass
+
     import whisperx
 
     log.info('Loading WhisperX model: %s  device=%s  compute_type=%s',

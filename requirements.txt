@@ -9,4 +9,5 @@ soundfile
 transformers>=4.39
 datasets
 jiwer
+omegaconf
 whisperx
