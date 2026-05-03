@@ -13,8 +13,5 @@ dependencies:
   - av
   - jiwer
   - psycopg2
-  - cmake
-  - boost
-  - eigen
   - libstdcxx-ng
   - pip
