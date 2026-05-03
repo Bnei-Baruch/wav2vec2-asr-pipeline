@@ -16,4 +16,5 @@ dependencies:
   - cmake
   - boost
   - eigen
+  - libstdcxx-ng
   - pip
