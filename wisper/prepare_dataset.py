@@ -1,3 +1,4 @@
+import argparse
 import os
 from datasets import load_dataset, Audio, concatenate_datasets
 
@@ -22,16 +23,14 @@ def load_dataset_from_dir():
     return concatenate_datasets(all_ds)
 
 
-def data_to_dataset():
+def data_to_dataset(out: str = "./train"):
     ds = load_dataset_from_dir()
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
 
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
 
-    split = ds.train_test_split(test_size=0.05, seed=42)
-    eval_ds = split["test"]
-    train_ds = split["train"]
-    print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
+    train_ds = ds
+    print(f"Train: {len(train_ds)}")
 
     def prepare_batch(batch):
         audio = batch["audio"]
@@ -45,17 +44,6 @@ def data_to_dataset():
         batch["labels"] = labels
         return batch
 
-    print("Preparing eval dataset...")
-    eval_ds = eval_ds.map(
-        prepare_batch,
-        remove_columns=eval_ds.column_names,
-        num_proc=1,
-        load_from_cache_file=False,
-    )
-    eval_ds.save_to_disk("./whisper_eval")
-    eval_ds.cleanup_cache_files()
-    print(f"Saved eval: {len(eval_ds)} samples -> ./whisper_eval")
-
     print("Preparing train dataset...")
     train_ds = train_ds.map(
         prepare_batch,
@@ -63,10 +51,13 @@ def data_to_dataset():
         num_proc=1,
         load_from_cache_file=False,
     )
-    train_ds.save_to_disk("./whisper_train")
+    train_ds.save_to_disk(out)
     train_ds.cleanup_cache_files()
-    print(f"Saved train: {len(train_ds)} samples -> ./whisper_train/")
+    print(f"Saved train: {len(train_ds)} samples -> {out}")
 
 
 if __name__ == "__main__":
-    data_to_dataset()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="./train")
+    args = parser.parse_args()
+    data_to_dataset(out=args.out)

@@ -40,11 +40,15 @@ log = _setup_logger()
 def load_rejected(rejected_csv: str) -> dict[str, dict[int, str]]:
     """
     Returns {source_metadata_path: {row_index: wav_path}}.
+    Skips entries whose only rejection reason is audio:clipping.
     """
     by_source: dict[str, dict[int, str]] = defaultdict(dict)
     try:
         with open(rejected_csv, encoding='utf-8-sig', newline='') as f:
             for row in csv.DictReader(f):
+                reasons = [r.strip() for r in row.get('reasons', '').split('|') if r.strip()]
+                if reasons == ['audio:clipping']:
+                    continue
                 source   = row['source']
                 index    = int(row['index'])
                 wav_path = row['wav_path']

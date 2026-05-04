@@ -85,10 +85,10 @@ def train(resume_from_checkpoint: Optional[str] = None):
 
     t0 = time.perf_counter()
 
-    eval_ds = load_from_disk("./whisper_eval")
+    eval_ds = load_from_disk("./eval")
     print(f"Eval dataset size: {len(eval_ds)}")
 
-    train_ds = load_from_disk("./whisper_train")
+    train_ds = load_from_disk("./train")
     print(f"Train dataset size: {len(train_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
