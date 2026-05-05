@@ -1,9 +1,8 @@
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
-import numpy as np
 import torch
 import evaluate
 from datasets import load_from_disk
@@ -16,7 +15,6 @@ from transformers import (
 from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-
 
 
 class BF16Seq2SeqTrainer(Seq2SeqTrainer):
@@ -36,17 +34,17 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
     decoder_start_token_id: int
 
-    def __call__(
-        self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
-    ) -> Dict[str, torch.Tensor]:
-        input_features = [{"input_features": f["input_features"]} for f in features]
-        label_features = [{"input_ids": f["labels"]} for f in features]
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+        audio_arrays = [f["audio"]["array"] for f in features]
+        sentences = [f["sentence"] for f in features]
 
-        batch = self.processor.feature_extractor.pad(
-            input_features, return_tensors="pt"
+        batch = self.processor.feature_extractor(
+            audio_arrays, sampling_rate=16000, return_tensors="pt"
         )
-        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
 
+        labels_batch = self.processor.tokenizer(
+            sentences, return_tensors="pt", padding=True
+        )
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
         )
@@ -57,6 +55,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         batch["labels"] = labels
         return batch
 
+
 def train():
     print(f"Load weights from: {BASE_MODEL_ID}")
     print(f"Output dir: {MODEL_DIR}")
@@ -65,8 +64,6 @@ def train():
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
     print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
-
-    t0 = time.perf_counter()
 
     eval_ds = load_from_disk("./eval")
     print(f"Eval dataset size: {len(eval_ds)}")
@@ -89,12 +86,9 @@ def train():
         label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
 
         pred_str = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-        label_str = processor.tokenizer.batch_decode(
-            label_ids, skip_special_tokens=True
-        )
+        label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
 
-        wer = wer_metric.compute(predictions=pred_str, references=label_str)
-        return {"wer": wer}
+        return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
 
     t0 = time.perf_counter()
     model = WhisperForConditionalGeneration.from_pretrained(
