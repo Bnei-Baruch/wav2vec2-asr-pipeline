@@ -67,7 +67,8 @@ def evaluate_baseline():
 
     print("Evaluating baseline model...")
     results = trainer.evaluate()
-    print(f"\nBaseline WER: {results['eval_wer']:.4f} ({results['eval_wer']*100:.2f}%)")
+    if trainer.is_world_process_zero():
+        print(f"\nBaseline WER: {results['eval_wer']:.4f} ({results['eval_wer']*100:.2f}%)")
     return results
 
 
