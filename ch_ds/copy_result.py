@@ -1,6 +1,6 @@
 """
 Reads a result CSV (columns: source, index, wav_path, text, duration_s)
-and copies every wav_path file flat into OUT_DIR.
+and copies every wav_path file into --out, preserving relative subdirectory structure.
 Also writes a metadata.csv in the output directory with updated wav_path values.
 
 Usage:
@@ -18,14 +18,6 @@ try:
     from tqdm import tqdm
 except ImportError:
     def tqdm(it, **_): return it  # type: ignore[misc]
-
-
-def _dst_name(src: str) -> str:
-    fname = os.path.basename(src)
-    p1 = os.path.basename(os.path.dirname(src))
-    p2 = os.path.basename(os.path.dirname(os.path.dirname(src)))
-    parts = [p for p in (p2, p1) if p]
-    return '_'.join(parts + [fname])
 
 
 def main() -> None:
@@ -54,6 +46,11 @@ def main() -> None:
 
         rows = list(reader)
 
+    wav_paths = [r['wav_path'].strip() for r in rows if r.get('wav_path', '').strip()]
+    common_prefix = os.path.commonpath(wav_paths) if wav_paths else ''
+    if os.path.isfile(common_prefix):
+        common_prefix = os.path.dirname(common_prefix)
+
     out_rows: list[dict] = []
     copied = skipped = 0
 
@@ -68,7 +65,9 @@ def main() -> None:
             skipped += 1
             continue
 
-        dst = os.path.join(args.out, _dst_name(src))
+        rel = os.path.relpath(src, common_prefix)
+        dst = os.path.join(args.out, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
 
         if os.path.abspath(src) != os.path.abspath(dst):
             shutil.copy2(src, dst)
