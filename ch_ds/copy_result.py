@@ -1,10 +1,10 @@
 """
 Reads a result CSV (columns: source, index, wav_path, text, duration_s)
-and copies every wav_path file flat into --out.
+and copies every wav_path file flat into OUT_DIR.
 Also writes a metadata.csv in the output directory with updated wav_path values.
 
 Usage:
-    python -m ch_ds.copy_result result_passed.csv --out /path/to/output
+    python -m ch_ds.copy_result result_passed.csv /path/to/output
 """
 from __future__ import annotations
 
@@ -16,10 +16,11 @@ import sys
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Copy wav files from a result CSV to --out dir.')
+    parser = argparse.ArgumentParser(description='Copy wav files from a result CSV to an output dir.')
     parser.add_argument('csv', help='Path to result CSV file')
-    parser.add_argument('--out', required=True, help='Destination directory')
+    parser.add_argument('out', help='Destination directory')
     args = parser.parse_args()
+    print(f'Copying wav files from {args.csv} to {args.out}...')
 
     if not os.path.isfile(args.csv):
         print(f'ERROR: CSV file not found: {args.csv}', file=sys.stderr)
