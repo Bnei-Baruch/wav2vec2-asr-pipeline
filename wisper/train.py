@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import torch
+import torchaudio
 import evaluate
 from datasets import load_from_disk
 from transformers import (
@@ -35,7 +36,12 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     decoder_start_token_id: int
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        audio_arrays = [f["audio"]["array"] for f in features]
+        audio_arrays = []
+        for f in features:
+            waveform, sr = torchaudio.load(f["audio"])
+            if sr != 16000:
+                waveform = torchaudio.functional.resample(waveform, sr, 16000)
+            audio_arrays.append(waveform.mean(dim=0).numpy())
         sentences = [f["sentence"] for f in features]
 
         batch = self.processor.feature_extractor(

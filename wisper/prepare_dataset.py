@@ -1,6 +1,6 @@
 import csv
 import os
-from datasets import Audio, Dataset
+from datasets import Dataset
 
 from .constants import DATASET_DIR
 
@@ -24,7 +24,7 @@ def load_dataset_from_dir():
                 })
     if not records:
         raise RuntimeError(f"No datasets found in {DATASET_DIR}")
-    return Dataset.from_list(records).cast_column("audio", Audio(sampling_rate=16000))
+    return Dataset.from_list(records)
 
 
 def data_to_dataset():
