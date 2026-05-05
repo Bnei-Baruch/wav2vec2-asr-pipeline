@@ -13,5 +13,8 @@ row_data*/
 kenlm.arpa
 audio.srt
 *.csv
-*.log
+**/*.log
 ch_ds.log
+models*/
+*.srt
+*.mp3
