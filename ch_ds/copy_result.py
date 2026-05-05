@@ -84,7 +84,7 @@ def main() -> None:
             d = os.path.dirname(r['wav_path'])
             by_dir.setdefault(d, []).append(r)
         for d, dir_rows in by_dir.items():
-            meta_path = os.path.join(d, 'metadata.csv')
+            meta_path = os.path.join(os.path.dirname(d), 'metadata.csv')
             with open(meta_path, 'w', newline='', encoding='utf-8') as fh:
                 writer = csv.DictWriter(fh, fieldnames=fieldnames)
                 writer.writeheader()
