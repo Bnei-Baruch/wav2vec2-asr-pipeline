@@ -78,9 +78,8 @@ def main() -> None:
         copied += 1
 
     if out_rows:
-        # AudioFolder needs: file_name (relative to metadata.csv), transcription, ...
-        extra_cols = [c for c in out_rows[0] if c not in ('wav_path', 'source', 'index', 'duration_s', '_dst')]
-        fieldnames = ['file_name'] + extra_cols
+        # parse_metadata expects: file_name (relative), sentence
+        fieldnames = ['file_name', 'sentence']
 
         by_dir: dict[str, list[dict]] = {}
         for r in out_rows:
@@ -96,7 +95,7 @@ def main() -> None:
                 for r in dir_rows:
                     writer.writerow({
                         'file_name': os.path.relpath(r['_dst'], meta_dir),
-                        **{c: r[c] for c in extra_cols},
+                        'sentence': r.get('text', ''),
                     })
             print(f'Wrote metadata: {meta_path}')
 
