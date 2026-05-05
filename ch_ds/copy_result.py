@@ -78,12 +78,18 @@ def main() -> None:
         copied += 1
 
     if out_rows:
-        meta_path = os.path.join(args.out, 'metadata.csv')
-        with open(meta_path, 'w', newline='', encoding='utf-8') as fh:
-            writer = csv.DictWriter(fh, fieldnames=list(out_rows[0].keys()))
-            writer.writeheader()
-            writer.writerows(out_rows)
-        print(f'Wrote metadata: {meta_path}')
+        fieldnames = list(out_rows[0].keys())
+        by_dir: dict[str, list[dict]] = {}
+        for r in out_rows:
+            d = os.path.dirname(r['wav_path'])
+            by_dir.setdefault(d, []).append(r)
+        for d, dir_rows in by_dir.items():
+            meta_path = os.path.join(d, 'metadata.csv')
+            with open(meta_path, 'w', newline='', encoding='utf-8') as fh:
+                writer = csv.DictWriter(fh, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(dir_rows)
+            print(f'Wrote metadata: {meta_path}')
 
     print(f'Done. Copied: {copied}, skipped: {skipped}')
 
