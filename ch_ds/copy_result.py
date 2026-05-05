@@ -21,9 +21,11 @@ except ImportError:
 
 
 def _dst_name(src: str) -> str:
-    parent = os.path.basename(os.path.dirname(src))
     fname = os.path.basename(src)
-    return f'{parent}_{fname}' if parent else fname
+    p1 = os.path.basename(os.path.dirname(src))
+    p2 = os.path.basename(os.path.dirname(os.path.dirname(src)))
+    parts = [p for p in (p2, p1) if p]
+    return '_'.join(parts + [fname])
 
 
 def main() -> None:
