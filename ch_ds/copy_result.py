@@ -14,6 +14,17 @@ import os
 import shutil
 import sys
 
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(it, **_): return it  # type: ignore[misc]
+
+
+def _dst_name(src: str) -> str:
+    parent = os.path.basename(os.path.dirname(src))
+    fname = os.path.basename(src)
+    return f'{parent}_{fname}' if parent else fname
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Copy wav files from a result CSV to an output dir.')
@@ -44,7 +55,7 @@ def main() -> None:
     out_rows: list[dict] = []
     copied = skipped = 0
 
-    for row in rows:
+    for row in tqdm(rows, desc='copying', unit='file'):
         src = row.get('wav_path', '').strip()
         if not src:
             skipped += 1
@@ -55,7 +66,7 @@ def main() -> None:
             skipped += 1
             continue
 
-        dst = os.path.join(args.out, os.path.basename(src))
+        dst = os.path.join(args.out, _dst_name(src))
 
         if os.path.abspath(src) != os.path.abspath(dst):
             shutil.copy2(src, dst)
