@@ -30,4 +30,5 @@ TRAINING_ARGS = {
     "dataloader_pin_memory": True,
     "remove_unused_columns": False,
     "ignore_data_skip": True,
+    "max_grad_norm": 1.0,
 }
