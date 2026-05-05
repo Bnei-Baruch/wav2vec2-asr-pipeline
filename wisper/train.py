@@ -1,9 +1,7 @@
-import json
 import os
 import time
-import argparse
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import torch
@@ -14,17 +12,11 @@ from transformers import (
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
-    TrainerCallback,
 )
 from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-
-class ResetBestMetricCallback(TrainerCallback):
-    def on_train_begin(self, _args, state, _control, **_kwargs):
-        state.best_metric = None
-        state.best_model_checkpoint = None
 
 
 class BF16Seq2SeqTrainer(Seq2SeqTrainer):
@@ -65,17 +57,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         batch["labels"] = labels
         return batch
 
-def _checkpoint_epoch(checkpoint_dir: str) -> float:
-    state_file = os.path.join(checkpoint_dir, "trainer_state.json")
-    with open(state_file) as f:
-        return json.load(f)["epoch"]
-
-
-def train(resume_from_checkpoint: Optional[str] = None):
-    model_source = (
-        resume_from_checkpoint if resume_from_checkpoint else BASE_MODEL_ID
-    )
-    print(f"Load weights from: {model_source}")
+def train():
+    print(f"Load weights from: {BASE_MODEL_ID}")
     print(f"Output dir: {MODEL_DIR}")
 
     t0 = time.perf_counter()
@@ -115,7 +98,7 @@ def train(resume_from_checkpoint: Optional[str] = None):
 
     t0 = time.perf_counter()
     model = WhisperForConditionalGeneration.from_pretrained(
-        model_source,
+        BASE_MODEL_ID,
         torch_dtype=torch.bfloat16,
     )
     model.generation_config.language = LANGUAGE
@@ -128,17 +111,11 @@ def train(resume_from_checkpoint: Optional[str] = None):
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Parameters: {trainable:,} trainable / {total:,} total")
 
-    base_epoch = int(_checkpoint_epoch(resume_from_checkpoint)) if resume_from_checkpoint else 0
-    num_train_epochs = base_epoch + TRAINING_ARGS["num_train_epochs"]
-    if resume_from_checkpoint:
-        print(f"Resuming from epoch {base_epoch}, training until epoch {num_train_epochs}")
-
     training_args = Seq2SeqTrainingArguments(
         output_dir=MODEL_DIR,
-        **{**TRAINING_ARGS, "num_train_epochs": num_train_epochs},
+        **TRAINING_ARGS,
     )
-    
-    callbacks = [ResetBestMetricCallback()] if resume_from_checkpoint else []
+
     trainer = BF16Seq2SeqTrainer(
         model=model,
         args=training_args,
@@ -147,11 +124,10 @@ def train(resume_from_checkpoint: Optional[str] = None):
         data_collator=data_collator,
         compute_metrics=compute_metrics,
         processing_class=processor,
-        callbacks=callbacks,
     )
 
     print("Starting training...")
-    trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    trainer.train()
 
     print("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
@@ -160,12 +136,4 @@ def train(resume_from_checkpoint: Optional[str] = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--resume",
-        default=None,
-        metavar="DIR",
-        help="Example: ./models/whisper-large-v3-he/checkpoint-400",
-    )
-    args = parser.parse_args()
-    train(resume_from_checkpoint=args.resume)
+    train()
