@@ -2,7 +2,7 @@ BASE_MODEL_ID = "ivrit-ai/whisper-large-v3"
 LANGUAGE = "he"
 TASK = "transcribe"
 
-DATASET_DIR = "./dataset_whisper"
+DATASET_DIR = "./dataset"
 ROW_DATA_DIR = "./row_data"
 MODEL_DIR = "./models/whisper-large-v3-he"
 
