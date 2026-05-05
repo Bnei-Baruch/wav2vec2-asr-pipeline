@@ -73,22 +73,31 @@ def main() -> None:
             shutil.copy2(src, dst)
 
         out_row = dict(row)
-        out_row['wav_path'] = dst
+        out_row['_dst'] = dst
         out_rows.append(out_row)
         copied += 1
 
     if out_rows:
-        fieldnames = list(out_rows[0].keys())
+        # AudioFolder needs: file_name (relative to metadata.csv), transcription, ...
+        extra_cols = [c for c in out_rows[0] if c not in ('wav_path', 'source', 'index', 'duration_s', '_dst')]
+        fieldnames = ['file_name'] + extra_cols
+
         by_dir: dict[str, list[dict]] = {}
         for r in out_rows:
-            d = os.path.dirname(r['wav_path'])
+            d = os.path.dirname(r['_dst'])
             by_dir.setdefault(d, []).append(r)
+
         for d, dir_rows in by_dir.items():
-            meta_path = os.path.join(os.path.dirname(d), 'metadata.csv')
+            meta_dir = os.path.dirname(d)
+            meta_path = os.path.join(meta_dir, 'metadata.csv')
             with open(meta_path, 'w', newline='', encoding='utf-8') as fh:
                 writer = csv.DictWriter(fh, fieldnames=fieldnames)
                 writer.writeheader()
-                writer.writerows(dir_rows)
+                for r in dir_rows:
+                    writer.writerow({
+                        'file_name': os.path.relpath(r['_dst'], meta_dir),
+                        **{c: r[c] for c in extra_cols},
+                    })
             print(f'Wrote metadata: {meta_path}')
 
     print(f'Done. Copied: {copied}, skipped: {skipped}')
