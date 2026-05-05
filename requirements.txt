@@ -11,3 +11,4 @@ datasets
 jiwer
 omegaconf
 whisperx
+accelerate>=1.1.0
