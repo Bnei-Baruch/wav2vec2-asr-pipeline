@@ -49,11 +49,6 @@ def main() -> None:
         if args.lim is not None:
             rows = rows[:args.lim]
 
-    wav_paths = [r['wav_path'].strip() for r in rows if r.get('wav_path', '').strip()]
-    common_prefix = os.path.commonpath(wav_paths) if wav_paths else ''
-    if os.path.isfile(common_prefix):
-        common_prefix = os.path.dirname(common_prefix)
-
     out_rows: list[dict] = []
     copied = skipped = 0
 
@@ -68,8 +63,10 @@ def main() -> None:
             skipped += 1
             continue
 
-        rel = os.path.relpath(src, common_prefix)
-        dst = os.path.join(args.out, rel)
+        parts = src.replace('\\', '/').rstrip('/').split('/')
+        filename = parts[-1]
+        subdir = parts[-3] if len(parts) >= 3 else ''
+        dst = os.path.join(args.out, subdir, filename)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
 
         if os.path.abspath(src) != os.path.abspath(dst):
@@ -90,14 +87,13 @@ def main() -> None:
             by_dir.setdefault(d, []).append(r)
 
         for d, dir_rows in by_dir.items():
-            meta_dir = os.path.dirname(d)
-            meta_path = os.path.join(meta_dir, 'metadata.csv')
+            meta_path = os.path.join(d, 'metadata.csv')
             with open(meta_path, 'w', newline='', encoding='utf-8') as fh:
                 writer = csv.DictWriter(fh, fieldnames=fieldnames)
                 writer.writeheader()
                 for r in dir_rows:
                     writer.writerow({
-                        'file_name': os.path.relpath(r['_dst'], meta_dir),
+                        'file_name': os.path.basename(r['_dst']),
                         'sentence': r.get('text', ''),
                     })
             print(f'Wrote metadata: {meta_path}')
