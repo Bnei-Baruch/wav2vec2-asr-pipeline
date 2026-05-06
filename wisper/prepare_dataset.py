@@ -45,7 +45,8 @@ def data_to_dataset():
     ds = ds.map(
         extract_features,
         batched=True,
-        batch_size=32,
+        batch_size=16,
+        writer_batch_size=100,
         remove_columns=["audio", "sentence"],
         desc="Extracting features",
     )
