@@ -4,16 +4,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import torch
-import torchaudio
 import evaluate
-from datasets import load_from_disk
+from datasets import load_dataset, Audio
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
 )
-from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
+from .constants import BASE_MODEL_ID, DATASET_DIR, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
@@ -36,12 +35,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     decoder_start_token_id: int
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        audio_arrays = []
-        for f in features:
-            waveform, sr = torchaudio.load(f["audio"])
-            if sr != 16000:
-                waveform = torchaudio.functional.resample(waveform, sr, 16000)
-            audio_arrays.append(waveform.mean(dim=0).numpy())
+        audio_arrays = [f["audio"]["array"] for f in features]
         sentences = [f["sentence"] for f in features]
 
         batch = self.processor.feature_extractor(
@@ -71,11 +65,12 @@ def train():
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
     print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
 
-    eval_ds = load_from_disk("./eval")
-    print(f"Eval dataset size: {len(eval_ds)}")
-
-    train_ds = load_from_disk("./train")
-    print(f"Train dataset size: {len(train_ds)}")
+    ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
+    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
+    split = ds.train_test_split(test_size=0.1, seed=42)
+    train_ds = split["train"]
+    eval_ds = split["test"]
+    print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
         processor=processor,

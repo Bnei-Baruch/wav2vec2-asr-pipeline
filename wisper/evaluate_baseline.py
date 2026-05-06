@@ -2,14 +2,14 @@ import argparse
 import os
 import torch
 import evaluate
-from datasets import load_from_disk
+from datasets import load_dataset, Audio
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
 )
-from .constants import BASE_MODEL_ID, LANGUAGE, TASK
+from .constants import BASE_MODEL_ID, DATASET_DIR, LANGUAGE, TASK
 from .train import DataCollatorSpeechSeq2SeqWithPadding, BF16Seq2SeqTrainer
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -20,7 +20,9 @@ def evaluate_baseline(model_id: str = None):
     print(f"Model: {model_id}")
     processor = WhisperProcessor.from_pretrained(model_id)
 
-    eval_ds = load_from_disk("./eval")
+    ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
+    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
+    eval_ds = ds.train_test_split(test_size=0.1, seed=42)["test"]
     print(f"Eval dataset size: {len(eval_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
