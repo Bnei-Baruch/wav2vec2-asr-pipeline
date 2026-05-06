@@ -7,9 +7,8 @@ python-dotenv
 evaluate
 soundfile
 transformers>=4.39
-datasets
+datasets<3.0
 jiwer
 omegaconf
 whisperx
 accelerate>=1.1.0
-torchcodec
