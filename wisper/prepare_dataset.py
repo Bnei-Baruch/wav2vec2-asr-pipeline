@@ -52,6 +52,7 @@ def data_to_dataset():
     eval_ds = eval_ds.map(
         prepare_sample,
         remove_columns=eval_ds.column_names,
+        writer_batch_size=50,
     )
     eval_ds.save_to_disk(EVAL_OUT)
     print(f"Saved eval: {len(eval_ds)} samples -> {EVAL_OUT}")
@@ -60,6 +61,7 @@ def data_to_dataset():
     train_ds = train_ds.map(
         prepare_sample,
         remove_columns=train_ds.column_names,
+        writer_batch_size=50,
     )
     train_ds.save_to_disk(TRAIN_OUT)
     print(f"Saved train: {len(train_ds)} samples -> {TRAIN_OUT}")
