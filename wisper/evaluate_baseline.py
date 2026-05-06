@@ -74,6 +74,7 @@ def evaluate_baseline(model_id: str = None):
     return results
 
 
+# Example: ptorchrun --nproc_per_node=2 -m wisper.evaluate_baseline --model openai/whisper-large-v3 > logs/evw_1.log 2> logs/evw_2.log
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=None, help="Model ID or path (default: BASE_MODEL_ID from constants)")

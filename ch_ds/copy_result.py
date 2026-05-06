@@ -24,6 +24,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Copy wav files from a result CSV to an output dir.')
     parser.add_argument('csv', help='Path to result CSV file')
     parser.add_argument('--out', required=True, help='Destination directory')
+    parser.add_argument('--lim', type=int, default=None, help='Max number of rows to process')
     args = parser.parse_args()
 
     if not os.path.isfile(args.csv):
@@ -45,6 +46,8 @@ def main() -> None:
             sys.exit(1)
 
         rows = list(reader)
+        if args.lim is not None:
+            rows = rows[:args.lim]
 
     wav_paths = [r['wav_path'].strip() for r in rows if r.get('wav_path', '').strip()]
     common_prefix = os.path.commonpath(wav_paths) if wav_paths else ''
@@ -102,6 +105,6 @@ def main() -> None:
     print(f'Done. Copied: {copied}, skipped: {skipped}')
 
 
-# Example: python -m ch_ds.copy_result results/all_passed.csv --out dataset_copy/
+# Example: python -m ch_ds.copy_result results/all_passed.csv --out dataset_copy/ --lim 100
 if __name__ == '__main__':
     main()
