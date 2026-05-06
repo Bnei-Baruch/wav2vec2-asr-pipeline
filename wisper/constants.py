@@ -7,10 +7,11 @@ ROW_DATA_DIR = "./row_data"
 MODEL_DIR = "./models/whisper-large-v3-he"
 
 TRAINING_ARGS = {
-    "per_device_train_batch_size": 4,
-    "gradient_accumulation_steps": 8,
-    "learning_rate": 1e-5,
-    "warmup_steps": 500,
+    "per_device_train_batch_size": 2,
+    "gradient_accumulation_steps": 16,
+    "learning_rate": 5e-6,
+    "warmup_steps": 1000,
+    "weight_decay": 0.01,
     "num_train_epochs": 3,
     "bf16": True,
     "gradient_checkpointing": True,
