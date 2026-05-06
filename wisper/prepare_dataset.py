@@ -42,12 +42,10 @@ def data_to_dataset():
         batch["labels"] = [processor.tokenizer(s).input_ids for s in batch["sentence"]]
         return batch
 
-    num_proc = max(1, os.cpu_count() - 2)
     ds = ds.map(
         extract_features,
         batched=True,
-        batch_size=64,
-        num_proc=num_proc,
+        batch_size=32,
         remove_columns=["audio", "sentence"],
         desc="Extracting features",
     )
@@ -64,5 +62,6 @@ def data_to_dataset():
     print(f"Saved eval: {len(eval_ds)} samples -> {EVAL_OUT}")
 
 
+#Example: python -m wisper.prepare_dataset
 if __name__ == "__main__":
     data_to_dataset()
