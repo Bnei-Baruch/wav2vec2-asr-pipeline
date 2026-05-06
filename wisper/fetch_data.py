@@ -138,5 +138,6 @@ def main():
                 f.write(f"  {d}\n")
 
 
+# Example: python -m wisper.fetch_data
 if __name__ == "__main__":
     main()

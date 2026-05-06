@@ -236,5 +236,6 @@ def main():
     log.info('Done.')
 
 
+# Example: python -m ch_ds.audio
 if __name__ == '__main__':
     main()

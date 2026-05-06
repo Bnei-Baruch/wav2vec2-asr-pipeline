@@ -276,5 +276,6 @@ def main():
     log.info('Done.')
 
 
+# Example: python -m ch_ds.lang
 if __name__ == '__main__':
     main()

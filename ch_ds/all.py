@@ -251,5 +251,6 @@ def main():
     log.info('Done.')
 
 
+# Example: python -m ch_ds.all
 if __name__ == '__main__':
     main()

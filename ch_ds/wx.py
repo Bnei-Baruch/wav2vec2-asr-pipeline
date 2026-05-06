@@ -292,5 +292,6 @@ def main():
     log.info('Done.')
 
 
+# Example: python -m ch_ds.wx
 if __name__ == '__main__':
     main()

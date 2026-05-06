@@ -89,5 +89,6 @@ def main():
         print(result["text"])
 
 
+# Example: python -m wisper.inference_fw audio.wav --timestamps --out result
 if __name__ == "__main__":
     main()

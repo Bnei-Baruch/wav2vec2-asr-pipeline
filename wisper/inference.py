@@ -106,5 +106,6 @@ def main():
         print(result["text"])
 
 
+# Example: python -m wisper.inference audio.wav --model openai/whisper-large-v3 --timestamps
 if __name__ == "__main__":
     main()

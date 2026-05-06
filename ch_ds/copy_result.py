@@ -102,5 +102,6 @@ def main() -> None:
     print(f'Done. Copied: {copied}, skipped: {skipped}')
 
 
+# Example: python -m ch_ds.copy_result results/all_passed.csv --out dataset_copy/
 if __name__ == '__main__':
     main()
