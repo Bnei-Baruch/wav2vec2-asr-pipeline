@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 import evaluate
@@ -14,8 +15,10 @@ from .train import DataCollatorSpeechSeq2SeqWithPadding, BF16Seq2SeqTrainer
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 
-def evaluate_baseline():
-    processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
+def evaluate_baseline(model_id: str = None):
+    model_id = model_id or BASE_MODEL_ID
+    print(f"Model: {model_id}")
+    processor = WhisperProcessor.from_pretrained(model_id)
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
     eval_ds = load_from_disk("./eval")
@@ -39,7 +42,7 @@ def evaluate_baseline():
         return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
 
     model = WhisperForConditionalGeneration.from_pretrained(
-        BASE_MODEL_ID,
+        model_id,
         torch_dtype=torch.bfloat16,
     )
     model.generation_config.language = LANGUAGE
@@ -73,4 +76,7 @@ def evaluate_baseline():
 
 
 if __name__ == "__main__":
-    evaluate_baseline()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=None, help="Model ID or path (default: BASE_MODEL_ID from constants)")
+    args = parser.parse_args()
+    evaluate_baseline(args.model)
