@@ -19,7 +19,6 @@ def evaluate_baseline(model_id: str = None):
     model_id = model_id or BASE_MODEL_ID
     print(f"Model: {model_id}")
     processor = WhisperProcessor.from_pretrained(model_id)
-    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
     eval_ds = load_from_disk("./eval")
     print(f"Eval dataset size: {len(eval_ds)}")

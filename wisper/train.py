@@ -101,9 +101,9 @@ def train():
         BASE_MODEL_ID,
         torch_dtype=torch.bfloat16,
     )
-    model.generation_config.language = LANGUAGE
-    model.generation_config.task = TASK
-    model.generation_config.forced_decoder_ids = None
+    model.generation_config.forced_decoder_ids = processor.tokenizer.get_decoder_prompt_ids(
+        language=LANGUAGE, task=TASK
+    )
     #model.freeze_encoder()
     print(f"Model loaded: {time.perf_counter() - t0:.1f}s")
 
