@@ -35,32 +35,34 @@ def data_to_dataset():
     ds = load_dataset_from_dir()
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
 
-    def extract_features(batch):
-        arrays = [a["array"] for a in batch["audio"]]
-        feats = processor.feature_extractor(arrays, sampling_rate=16000)
-        batch["input_features"] = feats.input_features
-        batch["labels"] = [processor.tokenizer(s).input_ids for s in batch["sentence"]]
-        return batch
-
-    ds = ds.map(
-        extract_features,
-        batched=True,
-        batch_size=16,
-        writer_batch_size=100,
-        remove_columns=["audio", "sentence"],
-        desc="Extracting features",
-    )
-
     split = ds.train_test_split(test_size=EVAL_SIZE, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 
-    train_ds.save_to_disk(TRAIN_OUT)
-    print(f"Saved train: {len(train_ds)} samples -> {TRAIN_OUT}")
+    def prepare_sample(sample):
+        audio = sample["audio"]
+        sample["input_features"] = processor.feature_extractor(
+            audio["array"], sampling_rate=audio["sampling_rate"]
+        ).input_features[0]
+        sample["labels"] = processor.tokenizer(sample["sentence"]).input_ids
+        return sample
 
+    print("Preparing eval dataset...")
+    eval_ds = eval_ds.map(
+        prepare_sample,
+        remove_columns=eval_ds.column_names,
+    )
     eval_ds.save_to_disk(EVAL_OUT)
     print(f"Saved eval: {len(eval_ds)} samples -> {EVAL_OUT}")
+
+    print("Preparing train dataset...")
+    train_ds = train_ds.map(
+        prepare_sample,
+        remove_columns=train_ds.column_names,
+    )
+    train_ds.save_to_disk(TRAIN_OUT)
+    print(f"Saved train: {len(train_ds)} samples -> {TRAIN_OUT}")
 
 
 #Example: python -m wisper.prepare_dataset
