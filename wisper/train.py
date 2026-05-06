@@ -124,6 +124,6 @@ def train():
     processor.save_pretrained(os.path.join(MODEL_DIR, "final"))
     print("Done.")
 
-## Example: ptorchrun --nproc_per_node=2 -m wisper.train > logs/train_1.log 2> logs/train_2.log
+## Example: torchrun --nproc_per_node=2 -m wisper.train > logs/train_1.log 2> logs/train_2.log
 if __name__ == "__main__":
     train()
