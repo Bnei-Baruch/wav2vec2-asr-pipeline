@@ -39,13 +39,14 @@ def data_to_dataset():
         arrays = [a["array"] for a in batch["audio"]]
         feats = processor.feature_extractor(arrays, sampling_rate=16000)
         batch["input_features"] = feats.input_features
+        batch["labels"] = [processor.tokenizer(s).input_ids for s in batch["sentence"]]
         return batch
 
     ds = ds.map(
         extract_features,
         batched=True,
         batch_size=64,
-        remove_columns=["audio"],
+        remove_columns=["audio", "sentence"],
         desc="Extracting features",
     )
 

@@ -38,8 +38,9 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         input_features = [{"input_features": f["input_features"]} for f in features]
         batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
 
-        labels_batch = self.processor.tokenizer(
-            [f["sentence"] for f in features], return_tensors="pt", padding=True
+        labels_batch = self.processor.tokenizer.pad(
+            {"input_ids": [f["labels"] for f in features]},
+            return_tensors="pt",
         )
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
