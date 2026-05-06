@@ -70,6 +70,7 @@ def data_to_dataset():
         writer_batch_size=2000,
     )
     eval_result.save_to_disk(EVAL_OUT)
+    eval_result.cleanup_cache_files()
     print(f"Saved eval: {len(eval_result)} samples -> {EVAL_OUT}")
 
     print("Preparing train dataset...")
@@ -80,6 +81,7 @@ def data_to_dataset():
         writer_batch_size=2000,
     )
     train_result.save_to_disk(TRAIN_OUT)
+    train_result.cleanup_cache_files()
     print(f"Saved train: {len(train_result)} samples -> {TRAIN_OUT}")
 
 
