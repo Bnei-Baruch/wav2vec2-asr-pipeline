@@ -42,10 +42,12 @@ def data_to_dataset():
         batch["labels"] = [processor.tokenizer(s).input_ids for s in batch["sentence"]]
         return batch
 
+    num_proc = max(1, os.cpu_count() - 2)
     ds = ds.map(
         extract_features,
         batched=True,
         batch_size=64,
+        num_proc=num_proc,
         remove_columns=["audio", "sentence"],
         desc="Extracting features",
     )
