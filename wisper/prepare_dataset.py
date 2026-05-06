@@ -1,6 +1,6 @@
 import csv
 import os
-from datasets import Dataset, Audio
+from datasets import Dataset, Audio, Features, Array2D, Sequence, Value
 from transformers import WhisperProcessor
 
 from .constants import DATASET_DIR, BASE_MODEL_ID, LANGUAGE, TASK
@@ -40,31 +40,47 @@ def data_to_dataset():
     eval_ds = split["test"]
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 
-    def prepare_sample(sample):
-        audio = sample["audio"]
-        sample["input_features"] = processor.feature_extractor(
-            audio["array"], sampling_rate=audio["sampling_rate"]
-        ).input_features[0]
-        sample["labels"] = processor.tokenizer(sample["sentence"]).input_ids
-        return sample
+    features = Features({
+        "input_features": Array2D(shape=(80, 3000), dtype="float32"),
+        "labels": Sequence(Value("int32")),
+    })
+
+    BATCH_SIZE = 32
+
+    def make_generator(source_ds):
+        batch_audio, batch_sentences = [], []
+        for sample in source_ds:
+            batch_audio.append(sample["audio"]["array"])
+            batch_sentences.append(sample["sentence"])
+            if len(batch_audio) >= BATCH_SIZE:
+                feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
+                for feat, sent in zip(feats.input_features, batch_sentences):
+                    yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
+                batch_audio, batch_sentences = [], []
+        if batch_audio:
+            feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
+            for feat, sent in zip(feats.input_features, batch_sentences):
+                yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
 
     print("Preparing eval dataset...")
-    eval_ds = eval_ds.map(
-        prepare_sample,
-        remove_columns=eval_ds.column_names,
-        writer_batch_size=50,
+    eval_result = Dataset.from_generator(
+        make_generator,
+        gen_kwargs={"source_ds": eval_ds},
+        features=features,
+        writer_batch_size=500,
     )
-    eval_ds.save_to_disk(EVAL_OUT)
-    print(f"Saved eval: {len(eval_ds)} samples -> {EVAL_OUT}")
+    eval_result.save_to_disk(EVAL_OUT)
+    print(f"Saved eval: {len(eval_result)} samples -> {EVAL_OUT}")
 
     print("Preparing train dataset...")
-    train_ds = train_ds.map(
-        prepare_sample,
-        remove_columns=train_ds.column_names,
-        writer_batch_size=50,
+    train_result = Dataset.from_generator(
+        make_generator,
+        gen_kwargs={"source_ds": train_ds},
+        features=features,
+        writer_batch_size=500,
     )
-    train_ds.save_to_disk(TRAIN_OUT)
-    print(f"Saved train: {len(train_ds)} samples -> {TRAIN_OUT}")
+    train_result.save_to_disk(TRAIN_OUT)
+    print(f"Saved train: {len(train_result)} samples -> {TRAIN_OUT}")
 
 
 #Example: python -m wisper.prepare_dataset
