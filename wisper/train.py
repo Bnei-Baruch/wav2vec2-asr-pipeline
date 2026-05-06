@@ -5,14 +5,14 @@ from typing import Any, Dict, List
 
 import torch
 import evaluate
-from datasets import load_dataset, Audio
+from datasets import load_from_disk
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
     Seq2SeqTrainingArguments,
     Seq2SeqTrainer,
 )
-from .constants import BASE_MODEL_ID, DATASET_DIR, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
+from .constants import BASE_MODEL_ID, MODEL_DIR, LANGUAGE, TASK, TRAINING_ARGS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
@@ -35,15 +35,11 @@ class DataCollatorSpeechSeq2SeqWithPadding:
     decoder_start_token_id: int
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-        audio_arrays = [f["audio"]["array"] for f in features]
-        sentences = [f["sentence"] for f in features]
-
-        batch = self.processor.feature_extractor(
-            audio_arrays, sampling_rate=16000, return_tensors="pt"
-        )
+        input_features = [{"input_features": f["input_features"]} for f in features]
+        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
 
         labels_batch = self.processor.tokenizer(
-            sentences, return_tensors="pt", padding=True
+            [f["sentence"] for f in features], return_tensors="pt", padding=True
         )
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
@@ -65,11 +61,9 @@ def train():
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
     print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
 
-    ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
-    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
-    split = ds.train_test_split(test_size=0.1, seed=42)
-    train_ds = split["train"]
-    eval_ds = split["test"]
+    from .prepare_dataset import TRAIN_OUT, EVAL_OUT
+    train_ds = load_from_disk(TRAIN_OUT)
+    eval_ds = load_from_disk(EVAL_OUT)
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(

@@ -1,8 +1,9 @@
 import csv
 import os
-from datasets import Dataset
+from datasets import Dataset, Audio
+from transformers import WhisperProcessor
 
-from .constants import DATASET_DIR
+from .constants import DATASET_DIR, BASE_MODEL_ID, LANGUAGE, TASK
 
 TRAIN_OUT = "./train"
 EVAL_OUT = "./eval"
@@ -28,9 +29,27 @@ def load_dataset_from_dir():
 
 
 def data_to_dataset():
-    ds = load_dataset_from_dir()
-    split = ds.train_test_split(test_size=EVAL_SIZE, seed=42)
+    processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
+    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
+    ds = load_dataset_from_dir()
+    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
+
+    def extract_features(batch):
+        arrays = [a["array"] for a in batch["audio"]]
+        feats = processor.feature_extractor(arrays, sampling_rate=16000)
+        batch["input_features"] = feats.input_features
+        return batch
+
+    ds = ds.map(
+        extract_features,
+        batched=True,
+        batch_size=64,
+        remove_columns=["audio"],
+        desc="Extracting features",
+    )
+
+    split = ds.train_test_split(test_size=EVAL_SIZE, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
