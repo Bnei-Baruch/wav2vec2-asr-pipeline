@@ -45,7 +45,7 @@ def data_to_dataset():
         "labels": Sequence(Value("int32")),
     })
 
-    BATCH_SIZE = 32
+    BATCH_SIZE = 128
 
     def make_generator(source_ds):
         batch_audio, batch_sentences = [], []
@@ -67,7 +67,7 @@ def data_to_dataset():
         make_generator,
         gen_kwargs={"source_ds": eval_ds},
         features=features,
-        writer_batch_size=500,
+        writer_batch_size=2000,
     )
     eval_result.save_to_disk(EVAL_OUT)
     print(f"Saved eval: {len(eval_result)} samples -> {EVAL_OUT}")
@@ -77,7 +77,7 @@ def data_to_dataset():
         make_generator,
         gen_kwargs={"source_ds": train_ds},
         features=features,
-        writer_batch_size=500,
+        writer_batch_size=2000,
     )
     train_result.save_to_disk(TRAIN_OUT)
     print(f"Saved train: {len(train_result)} samples -> {TRAIN_OUT}")
