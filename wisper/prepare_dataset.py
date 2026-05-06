@@ -41,7 +41,7 @@ def data_to_dataset():
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 
     features = Features({
-        "input_features": Array2D(shape=(80, 3000), dtype="float32"),
+        "input_features": Array2D(shape=(128, 3000), dtype="float32"),
         "labels": Sequence(Value("int32")),
     })
 
