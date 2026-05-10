@@ -2,14 +2,14 @@ import argparse
 import os
 import torch
 import evaluate
-from datasets import load_dataset, Audio
+from datasets import load_from_disk
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
     Seq2SeqTrainingArguments,
-    Seq2SeqTrainer,
 )
-from .constants import BASE_MODEL_ID, DATASET_DIR, LANGUAGE, TASK
+from .constants import BASE_MODEL_ID, LANGUAGE, TASK
+from .prepare_dataset import EVAL_OUT
 from .train import DataCollatorSpeechSeq2SeqWithPadding, BF16Seq2SeqTrainer
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -19,10 +19,9 @@ def evaluate_baseline(model_id: str = None):
     model_id = model_id or BASE_MODEL_ID
     print(f"Model: {model_id}")
     processor = WhisperProcessor.from_pretrained(model_id)
+    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
-    ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
-    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
-    eval_ds = ds.train_test_split(test_size=0.1, seed=42)["test"]
+    eval_ds = load_from_disk(EVAL_OUT)
     print(f"Eval dataset size: {len(eval_ds)}")
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(
@@ -76,7 +75,7 @@ def evaluate_baseline(model_id: str = None):
     return results
 
 
-# Example: ptorchrun --nproc_per_node=2 -m wisper.evaluate_baseline --model openai/whisper-large-v3 > logs/evw_1.log 2> logs/evw_2.log
+# Example: torchrun --nproc_per_node=2 -m wisper.evaluate_baseline --model openai/whisper-large-v3 > logs/evw_1.log 2> logs/evw_2.log
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=None, help="Model ID or path (default: BASE_MODEL_ID from constants)")

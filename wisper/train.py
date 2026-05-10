@@ -94,7 +94,7 @@ def train():
     model.generation_config.forced_decoder_ids = processor.tokenizer.get_decoder_prompt_ids(
         language=LANGUAGE, task=TASK
     )
-    #model.freeze_encoder()
+    model.freeze_encoder()
     print(f"Model loaded: {time.perf_counter() - t0:.1f}s")
 
     total = sum(p.numel() for p in model.parameters())

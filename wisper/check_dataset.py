@@ -45,7 +45,7 @@ def check_split(ds, name: str, processor: WhisperProcessor, n_samples: int):
     print(f"  Inf:  {inf_count}")
 
     print(f"\nSample labels (decoded):")
-    indices = np.linspace(0, len(ds) - 1, n_samples, dtype=int)
+    indices = [int(i) for i in np.linspace(0, len(ds) - 1, n_samples)]
     for i in indices:
         ids = ds[i]["labels"]
         text = processor.tokenizer.decode(ids, skip_special_tokens=True)
