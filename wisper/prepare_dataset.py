@@ -42,7 +42,7 @@ def data_to_dataset():
 
     features = Features({
         "input_features": Array2D(shape=(128, 3000), dtype="float32"),
-        "labels": Sequence(Value("int32")),
+        "labels": Sequence(Value("int64")),
     })
 
     BATCH_SIZE = 128
@@ -55,12 +55,18 @@ def data_to_dataset():
             if len(batch_audio) >= BATCH_SIZE:
                 feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
                 for feat, sent in zip(feats.input_features, batch_sentences):
-                    yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
+                    labels = processor.tokenizer(sent).input_ids
+                    if labels[0] == processor.tokenizer.bos_token_id:
+                        labels = labels[1:]
+                    yield {"input_features": feat, "labels": labels}
                 batch_audio, batch_sentences = [], []
         if batch_audio:
             feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
             for feat, sent in zip(feats.input_features, batch_sentences):
-                yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
+                labels = processor.tokenizer(sent).input_ids
+                if labels[0] == processor.tokenizer.bos_token_id:
+                    labels = labels[1:]
+                yield {"input_features": feat, "labels": labels}
 
     print("Preparing eval dataset...")
     eval_result = Dataset.from_generator(
