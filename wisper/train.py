@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import torch
 import evaluate
-from datasets import load_from_disk
+from datasets import load_from_disk, concatenate_datasets
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
@@ -62,8 +62,10 @@ def train():
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
     print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
 
-    from .prepare_dataset import TRAIN_OUT, EVAL_OUT
-    train_ds = load_from_disk(TRAIN_OUT)
+    from .prepare_dataset import TRAIN_OUT, EVAL_OUT, NUM_TRAIN_SHARDS
+    train_ds = concatenate_datasets([
+        load_from_disk(f"{TRAIN_OUT}_{i}") for i in range(NUM_TRAIN_SHARDS)
+    ])
     eval_ds = load_from_disk(EVAL_OUT)
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
 

@@ -8,6 +8,7 @@ from .constants import DATASET_DIR, BASE_MODEL_ID, LANGUAGE, TASK
 TRAIN_OUT = "./train"
 EVAL_OUT = "./eval"
 EVAL_SIZE = 0.1
+NUM_TRAIN_SHARDS = 10
 
 
 def load_dataset_from_dir():
@@ -79,16 +80,22 @@ def data_to_dataset():
     eval_result.cleanup_cache_files()
     print(f"Saved eval: {len(eval_result)} samples -> {EVAL_OUT}")
 
-    print("Preparing train dataset...")
-    train_result = Dataset.from_generator(
-        make_generator,
-        gen_kwargs={"source_ds": train_ds},
-        features=features,
-        writer_batch_size=2000,
-    )
-    train_result.save_to_disk(TRAIN_OUT)
-    train_result.cleanup_cache_files()
-    print(f"Saved train: {len(train_result)} samples -> {TRAIN_OUT}")
+    total_train = 0
+    for shard_idx in range(NUM_TRAIN_SHARDS):
+        shard = train_ds.shard(num_shards=NUM_TRAIN_SHARDS, index=shard_idx)
+        out_path = f"{TRAIN_OUT}_{shard_idx}"
+        print(f"Preparing train shard {shard_idx + 1}/{NUM_TRAIN_SHARDS} ({len(shard)} samples)...")
+        shard_result = Dataset.from_generator(
+            make_generator,
+            gen_kwargs={"source_ds": shard},
+            features=features,
+            writer_batch_size=2000,
+        )
+        shard_result.save_to_disk(out_path)
+        shard_result.cleanup_cache_files()
+        total_train += len(shard_result)
+        print(f"Saved shard {shard_idx}: {len(shard_result)} samples -> {out_path}")
+    print(f"Done. Total train samples: {total_train}")
 
 
 #Example: python -m wisper.prepare_dataset
