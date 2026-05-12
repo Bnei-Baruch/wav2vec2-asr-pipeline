@@ -7,12 +7,9 @@ Usage:
 """
 import argparse
 import numpy as np
-from collections import Counter
 from datasets import load_from_disk
 from transformers import WhisperProcessor
 from .constants import BASE_MODEL_ID, LANGUAGE, TASK
-
-EMPTY_LABEL_MAX_LEN = 6  # labels shorter than this are likely empty/broken sentences
 
 
 def check_split(ds, name: str, processor: WhisperProcessor, n_samples: int):
@@ -20,36 +17,19 @@ def check_split(ds, name: str, processor: WhisperProcessor, n_samples: int):
     print(f"  {name.upper()}  —  {len(ds):,} samples")
     print(f"{'='*60}")
 
-    label_lengths = [len(x) for x in ds["labels"]]
-    short = sum(1 for l in label_lengths if l <= EMPTY_LABEL_MAX_LEN)
-
-    print(f"Label length — min: {min(label_lengths)}, max: {max(label_lengths)}, "
-          f"mean: {np.mean(label_lengths):.1f}, median: {np.median(label_lengths):.1f}")
-    print(f"Short labels (len <= {EMPTY_LABEL_MAX_LEN}): {short} ({100*short/len(ds):.1f}%)  ← likely empty sentences")
-
-    # Check input_features shape and NaN/inf on first 500 samples
-    check_n = min(500, len(ds))
-    nan_count = inf_count = wrong_shape = 0
-    for i in range(check_n):
-        feat = np.array(ds[i]["input_features"])
-        if feat.shape != (128, 3000):
-            wrong_shape += 1
-        if np.isnan(feat).any():
-            nan_count += 1
-        if np.isinf(feat).any():
-            inf_count += 1
-
-    print(f"\nFeature check (first {check_n} samples):")
-    print(f"  Wrong shape (≠128×3000): {wrong_shape}")
-    print(f"  NaN:  {nan_count}")
-    print(f"  Inf:  {inf_count}")
-
-    print(f"\nSample labels (decoded):")
+    print(f"Total samples: {len(ds):,}")
+    print(f"\nSamples:")
     indices = [int(i) for i in np.linspace(0, len(ds) - 1, n_samples)]
     for i in indices:
+        feat = np.array(ds[i]["input_features"])
         ids = ds[i]["labels"]
         text = processor.tokenizer.decode(ids, skip_special_tokens=True)
-        print(f"  [{i:6d}] len={len(ids):3d}  {repr(text[:80])}")
+        shape_ok = "OK" if feat.shape == (128, 3000) else f"BAD{feat.shape}"
+        feat_info = f"min={feat.min():.2f} max={feat.max():.2f}"
+        has_nan = " NaN!" if np.isnan(feat).any() else ""
+        has_inf = " Inf!" if np.isinf(feat).any() else ""
+        ids_info = f"ids=[{min(ids)}..{max(ids)}]" if ids else "ids=EMPTY"
+        print(f"  [{i:6d}] feat={shape_ok} {feat_info}{has_nan}{has_inf}  labels len={len(ids):3d} {ids_info}  {repr(text[:60])}")
 
 
 def main():
