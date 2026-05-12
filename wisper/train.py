@@ -65,10 +65,11 @@ class DataCollatorSpeechSeq2SeqWithPadding:
                 [t for t in labels[0].tolist() if t != -100],
                 skip_special_tokens=True,
             )
+            first_ids = [t for t in labels[0].tolist() if t != -100]
             logger.info(
                 "[collator] keys=%s  sentence=%r  audio_sr=%s  audio_len=%s  "
                 "feat_shape=%s  feat_min=%.3f  feat_max=%.3f  "
-                "labels_shape=%s  labels_ids=[%s..%s]  labels_decoded=%r",
+                "labels_shape=%s  labels_ids=[%s..%s]  labels_first8=%s  labels_decoded=%r",
                 list(f0.keys()),
                 sentence[:80],
                 f0["audio"]["sampling_rate"],
@@ -79,6 +80,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
                 tuple(labels.shape),
                 labels[labels != -100].min().item(),
                 labels[labels != -100].max().item(),
+                first_ids[:8],
                 decoded[:80],
             )
 
@@ -92,7 +94,7 @@ def train():
 
     t0 = time.perf_counter()
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
-    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
+    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK, predict_timestamps=False)
     logger.info("Processor loaded: %.1fs", time.perf_counter() - t0)
 
     ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
