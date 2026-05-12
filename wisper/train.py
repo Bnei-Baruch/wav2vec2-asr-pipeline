@@ -92,6 +92,7 @@ def train():
 
     t0 = time.perf_counter()
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
+    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
     logger.info("Processor loaded: %.1fs", time.perf_counter() - t0)
 
     ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
@@ -120,7 +121,9 @@ def train():
     )
     model.generation_config.language = LANGUAGE
     model.generation_config.task = TASK
-    model.generation_config.forced_decoder_ids = None
+    model.generation_config.forced_decoder_ids = processor.get_decoder_prompt_ids(
+        language=LANGUAGE, task=TASK
+    )
     model.freeze_encoder()
     logger.info("Model loaded: %.1fs", time.perf_counter() - t0)
 
