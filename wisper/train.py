@@ -1,11 +1,14 @@
+import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import torch
 import evaluate
 from datasets import load_dataset, Audio
+
+logger = logging.getLogger(__name__)
 from transformers import (
     WhisperForConditionalGeneration,
     WhisperProcessor,
@@ -34,6 +37,7 @@ class BF16Seq2SeqTrainer(Seq2SeqTrainer):
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
+    _logged: bool = field(default=False, init=False, repr=False)
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         input_features = self.processor.feature_extractor(
@@ -53,10 +57,36 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
             labels = labels[:, 1:]
 
+        if not self._logged:
+            self._logged = True
+            f0 = features[0]
+            sentence = f0.get("sentence", "MISSING")
+            decoded = self.processor.tokenizer.decode(
+                [t for t in labels[0].tolist() if t != -100],
+                skip_special_tokens=True,
+            )
+            logger.info(
+                "[collator] keys=%s  sentence=%r  audio_sr=%s  audio_len=%s  "
+                "feat_shape=%s  feat_min=%.3f  feat_max=%.3f  "
+                "labels_shape=%s  labels_ids=[%s..%s]  labels_decoded=%r",
+                list(f0.keys()),
+                sentence[:80],
+                f0["audio"]["sampling_rate"],
+                len(f0["audio"]["array"]),
+                tuple(input_features.shape),
+                input_features.min().item(),
+                input_features.max().item(),
+                tuple(labels.shape),
+                labels[labels != -100].min().item(),
+                labels[labels != -100].max().item(),
+                decoded[:80],
+            )
+
         return {"input_features": input_features, "labels": labels}
 
 
 def train():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     print(f"Load weights from: {BASE_MODEL_ID}")
     print(f"Output dir: {MODEL_DIR}")
 
