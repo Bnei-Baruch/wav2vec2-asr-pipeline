@@ -64,7 +64,7 @@ def train():
 
     from .prepare_dataset import TRAIN_OUT, EVAL_OUT, NUM_TRAIN_SHARDS
     train_ds = concatenate_datasets([
-        load_from_disk(f"{TRAIN_OUT}_{i}") for i in range(NUM_TRAIN_SHARDS)
+        load_from_disk(f"{TRAIN_OUT}_{i}") for i in range(NUM_TRAIN_SHARDS) if os.path.exists(f"{TRAIN_OUT}_{i}")
     ])
     eval_ds = load_from_disk(EVAL_OUT)
     print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
