@@ -30,7 +30,7 @@ class BF16Seq2SeqTrainer(Seq2SeqTrainer):
                     model, inputs, prediction_loss_only, ignore_keys=ignore_keys
                 )
         except Exception as e:
-            print(f"[eval] FAILED: {type(e).__name__}: {e}")
+            logger.error("[eval] FAILED: %s: %s", type(e).__name__, e)
             raise
 
 
@@ -87,19 +87,19 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 def train():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    print(f"Load weights from: {BASE_MODEL_ID}")
-    print(f"Output dir: {MODEL_DIR}")
+    logger.info("Load weights from: %s", BASE_MODEL_ID)
+    logger.info("Output dir: %s", MODEL_DIR)
 
     t0 = time.perf_counter()
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
-    print(f"Processor loaded: {time.perf_counter() - t0:.1f}s")
+    logger.info("Processor loaded: %.1fs", time.perf_counter() - t0)
 
     ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
     split = ds.train_test_split(test_size=EVAL_SIZE, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
-    print(f"Train: {len(train_ds)}, Eval: {len(eval_ds)}")
+    logger.info("Train: %d, Eval: %d", len(train_ds), len(eval_ds))
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
@@ -122,11 +122,11 @@ def train():
     model.generation_config.task = TASK
     model.generation_config.forced_decoder_ids = None
     model.freeze_encoder()
-    print(f"Model loaded: {time.perf_counter() - t0:.1f}s")
+    logger.info("Model loaded: %.1fs", time.perf_counter() - t0)
 
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Parameters: {trainable:,} trainable / {total:,} total")
+    logger.info("Parameters: %s trainable / %s total", f"{trainable:,}", f"{total:,}")
 
     training_args = Seq2SeqTrainingArguments(output_dir=MODEL_DIR, **TRAINING_ARGS)
 
@@ -140,13 +140,13 @@ def train():
         processing_class=processor,
     )
 
-    print("Starting training...")
+    logger.info("Starting training...")
     trainer.train()
 
-    print("Saving final model...")
+    logger.info("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
     processor.save_pretrained(os.path.join(MODEL_DIR, "final"))
-    print("Done.")
+    logger.info("Done.")
 
 
 ## Example: torchrun --nproc_per_node=2 -m wisper.train > logs/train_1.log 2> logs/train_2.log
