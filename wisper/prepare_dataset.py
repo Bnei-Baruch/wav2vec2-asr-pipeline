@@ -1,9 +1,7 @@
-import csv
-import os
-from datasets import Dataset, Audio, Features, Array2D, Sequence, Value
+from datasets import load_dataset, Dataset, Audio, Features, Array2D, Sequence, Value
 from transformers import WhisperProcessor
 
-from .constants import DATASET_DIR, BASE_MODEL_ID, LANGUAGE, TASK
+from .constants import DATASET_DIR, BASE_MODEL_ID
 
 TRAIN_OUT = "./train"
 EVAL_OUT = "./eval"
@@ -12,26 +10,14 @@ NUM_TRAIN_SHARDS = 10
 
 
 def load_dataset_from_dir():
-    records = []
-    for name in sorted(os.listdir(DATASET_DIR)):
-        sub_dir = os.path.join(DATASET_DIR, name)
-        meta = os.path.join(sub_dir, "metadata.csv")
-        if not os.path.isdir(sub_dir) or not os.path.isfile(meta):
-            continue
-        with open(meta, newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                records.append({
-                    "audio": os.path.join(sub_dir, row["file_name"]),
-                    "sentence": row["sentence"],
-                })
-    if not records:
+    ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")
+    if len(ds) == 0:
         raise RuntimeError(f"No datasets found in {DATASET_DIR}")
-    return Dataset.from_list(records)
+    return ds
 
 
 def data_to_dataset():
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
-    processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
     ds = load_dataset_from_dir()
     ds = ds.cast_column("audio", Audio(sampling_rate=16000))
@@ -56,18 +42,12 @@ def data_to_dataset():
             if len(batch_audio) >= BATCH_SIZE:
                 feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
                 for feat, sent in zip(feats.input_features, batch_sentences):
-                    labels = processor.tokenizer(sent).input_ids
-                    if labels[0] == processor.tokenizer.bos_token_id:
-                        labels = labels[1:]
-                    yield {"input_features": feat, "labels": labels}
+                    yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
                 batch_audio, batch_sentences = [], []
         if batch_audio:
             feats = processor.feature_extractor(batch_audio, sampling_rate=16000)
             for feat, sent in zip(feats.input_features, batch_sentences):
-                labels = processor.tokenizer(sent).input_ids
-                if labels[0] == processor.tokenizer.bos_token_id:
-                    labels = labels[1:]
-                yield {"input_features": feat, "labels": labels}
+                yield {"input_features": feat, "labels": processor.tokenizer(sent).input_ids}
 
     print("Preparing eval dataset...")
     eval_result = Dataset.from_generator(
