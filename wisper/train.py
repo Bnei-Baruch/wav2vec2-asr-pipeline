@@ -54,7 +54,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
         )
-        if (labels[:, 0] == self.processor.tokenizer.bos_token_id).all().cpu().item():
+        sot_id = self.processor.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
+        if (labels[:, 0] == sot_id).all().cpu().item():
             labels = labels[:, 1:]
 
         if not self._logged:
