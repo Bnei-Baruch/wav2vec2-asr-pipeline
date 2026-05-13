@@ -103,6 +103,8 @@ def train():
     split = ds.train_test_split(test_size=EVAL_SIZE, seed=42)
     train_ds = split["train"]
     eval_ds = split["test"]
+    if len(eval_ds) > 2000:
+        eval_ds = eval_ds.shuffle(seed=42).select(range(2000))
     logger.info("Train: %d, Eval: %d", len(train_ds), len(eval_ds))
 
     data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
@@ -147,7 +149,7 @@ def train():
     )
 
     logger.info("Starting training...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
 
     logger.info("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
