@@ -18,7 +18,7 @@ from .punct import (
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str, apply: bool) -> str:
     """Fix punctuation inconsistencies while preserving punctuation."""
     if PUNCT_INVISIBLE.search(text):
         text = PUNCT_INVISIBLE.sub('', text)
@@ -26,11 +26,11 @@ def normalize_text(text: str) -> str:
         text = PUNCT_DIALOGUE_DASH.sub('', text)
     if PUNCT_DOUBLE_DASH.search(text):
         text = PUNCT_DOUBLE_DASH.sub('—', text)
-    if PUNCT_REPEATED.search(text):
+    if PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
-    if PUNCT_DOUBLE_SPACE.search(text):
+    if PUNCT_DOUBLE_SPACE.search(text) and not apply:
         text = PUNCT_DOUBLE_SPACE.sub(' ', text)
-    if PUNCT_SPACE_BEFORE.search(text):
+    if PUNCT_SPACE_BEFORE.search(text) and not apply:
         text = _SPACE_BEFORE_SUB.sub(r'\1', text)
     return text.strip()
 
@@ -54,7 +54,7 @@ def _process_file(csv_path: str, apply: bool, preview_limit: int) -> tuple[int, 
     new_rows = []
     for i, row in enumerate(rows):
         orig = row.get('sentence', '')
-        norm = normalize_text(orig)
+        norm = normalize_text(orig, apply)
         new_rows.append({**row, 'sentence': norm})
         if norm != orig:
             changed.append((i, orig, norm))
