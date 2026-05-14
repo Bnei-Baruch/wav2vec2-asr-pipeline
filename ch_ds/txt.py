@@ -176,6 +176,7 @@ def main():
                 else:
                     wa.writerow(row + ['|'.join(flags) if flags else '', 'yes'])
                     wp.writerow(row)
+
     finally:
         fa.close(); fp.close(); ff.close(); fl.close()
 

@@ -25,6 +25,10 @@ PUNCT_DOUBLE_DASH  = re.compile(r'--')
 PUNCT_COLON_NO_SPACE = re.compile(r'(?<=\S):(?=[^\s\d/])')
 # punctuation at start of string (excluding Hebrew-style ?/! at start)
 PUNCT_LEADING      = re.compile(r'^[,;.]')
+# dialogue dash at start of utterance ("-אני", "- זה")
+PUNCT_DIALOGUE_DASH = re.compile(r'^-\s*')
+# spelling variants found in dataset
+SPELLING_VARIANT   = re.compile(r'\bמאד\b|\bהכול\b')
 
 
 def _unbalanced_brackets(text: str) -> bool:
@@ -67,7 +71,28 @@ def check_punct(text: str) -> list[str]:
         flags.append('punct_unbalanced')
     if _mixed_quotes(text):
         flags.append('punct_mixed_quotes')
+    if PUNCT_DIALOGUE_DASH.search(text):
+        flags.append('punct_dialogue_dash')
+    if SPELLING_VARIANT.search(text):
+        flags.append('spelling_variant')
     return flags
+
+
+def normalize_text(text: str) -> str:
+    """Fix punctuation inconsistencies while preserving punctuation."""
+    if PUNCT_INVISIBLE.search(text):
+        text = PUNCT_INVISIBLE.sub('', text)
+    if PUNCT_DIALOGUE_DASH.search(text):
+        text = PUNCT_DIALOGUE_DASH.sub('', text)
+    if PUNCT_DOUBLE_DASH.search(text):
+        text = PUNCT_DOUBLE_DASH.sub('—', text)
+    if PUNCT_REPEATED.search(text):
+        text = PUNCT_REPEATED.sub(r'\1', text)
+    if PUNCT_DOUBLE_SPACE.search(text):
+        text = PUNCT_DOUBLE_SPACE.sub(' ', text)
+    if PUNCT_SPACE_BEFORE.search(text):
+        text = PUNCT_SPACE_BEFORE.sub(r'\1', text)
+    return text.strip()
 
 
 def punct_detail(text: str, flag: str) -> str:

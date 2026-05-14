@@ -95,6 +95,7 @@ def train():
 
     t0 = time.perf_counter()
     processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
+    processor.tokenizer.clean_up_tokenization_spaces = False
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK, predict_timestamps=False)
     logger.info("Processor loaded: %.1fs", time.perf_counter() - t0)
 
