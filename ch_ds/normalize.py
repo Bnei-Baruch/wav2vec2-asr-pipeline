@@ -20,6 +20,8 @@ _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 _WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
 # ASCII " or "" between Hebrew letters → ״ (U+05F4)
 _ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])\x22{1,2}(?=[א-ת])')
+# " not followed by a Hebrew letter — indicates a real closing quote in the text
+_HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
@@ -42,7 +44,7 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
         text = PUNCT_DOUBLE_DASH.sub('—', text)
     if 'wrong_dots' in fixes and _WRONG_DOTS.search(text):
         text = _WRONG_DOTS.sub('...', text)
-    if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text):
+    if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text) and not _HAS_CLOSING_QUOT.search(text):
         text = _ASCII_GERSHAYIM.sub('״', text)
     if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
