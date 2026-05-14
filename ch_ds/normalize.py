@@ -16,21 +16,44 @@ from .punct import (
 )
 
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
+# .. or ....+ → ... (wrong dot count instead of ellipsis)
+_WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
+# ASCII " used as Hebrew gershayim between letters → ״ (U+05F4)
+_ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])""(?=[א-ת])')
+# ASCII " used as Hebrew geresh at end of word → ׳ (U+05F3)
+_ASCII_GERESH     = re.compile(r'(?<=[א-ת])"(?=[\s,;.!?]|$)')
+
+ALL_FIXES: frozenset[str] = frozenset({
+    'invisible',
+    'dialogue_dash',
+    'double_dash',
+    'wrong_dots',
+    'ascii_quot',
+    'punct_repeated',
+    'double_space',
+    'space_before',
+})
 
 
-def normalize_text(text: str, apply: bool) -> str:
-    """Fix punctuation inconsistencies while preserving punctuation."""
-    if PUNCT_INVISIBLE.search(text):
+def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) -> str:
+    if 'invisible' in fixes and PUNCT_INVISIBLE.search(text):
         text = PUNCT_INVISIBLE.sub('', text)
-    if PUNCT_DIALOGUE_DASH.search(text):
+    if 'dialogue_dash' in fixes and PUNCT_DIALOGUE_DASH.search(text):
         text = PUNCT_DIALOGUE_DASH.sub('', text)
-    if PUNCT_DOUBLE_DASH.search(text):
+    if 'double_dash' in fixes and PUNCT_DOUBLE_DASH.search(text):
         text = PUNCT_DOUBLE_DASH.sub('—', text)
-    if PUNCT_REPEATED.search(text) and not apply:
+    if 'wrong_dots' in fixes and _WRONG_DOTS.search(text):
+        text = _WRONG_DOTS.sub('...', text)
+    if 'ascii_quot' in fixes:
+        if _ASCII_GERSHAYIM.search(text):
+            text = _ASCII_GERSHAYIM.sub('״', text)
+        if _ASCII_GERESH.search(text):
+            text = _ASCII_GERESH.sub('׳', text)
+    if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
-    if PUNCT_DOUBLE_SPACE.search(text) and not apply:
+    if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
         text = PUNCT_DOUBLE_SPACE.sub(' ', text)
-    if PUNCT_SPACE_BEFORE.search(text) and not apply:
+    if 'space_before' in fixes and PUNCT_SPACE_BEFORE.search(text) and not apply:
         text = _SPACE_BEFORE_SUB.sub(r'\1', text)
     return text.strip()
 
@@ -44,7 +67,7 @@ def _find_metadata_files(data_dir: str) -> list[str]:
     return sorted(result)
 
 
-def _process_file(csv_path: str, apply: bool, preview_limit: int) -> tuple[int, int]:
+def _process_file(csv_path: str, apply: bool, preview_limit: int, fixes: frozenset[str]) -> tuple[int, int]:
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
@@ -54,7 +77,7 @@ def _process_file(csv_path: str, apply: bool, preview_limit: int) -> tuple[int, 
     new_rows = []
     for i, row in enumerate(rows):
         orig = row.get('sentence', '')
-        norm = normalize_text(orig, apply)
+        norm = normalize_text(orig, apply, fixes)
         new_rows.append({**row, 'sentence': norm})
         if norm != orig:
             changed.append((i, orig, norm))
@@ -80,7 +103,19 @@ def main():
     parser.add_argument('--data_dir', default='./dataset', help='Root dataset directory')
     parser.add_argument('--apply', action='store_true', help='Write changes to files (default: dry-run)')
     parser.add_argument('--preview', type=int, default=5, help='Number of example changes to show per file (default: 5)')
+    parser.add_argument(
+        '--fixes', nargs='+', metavar='FIX',
+        help=f'Fixes to apply (default: all). Available: {", ".join(sorted(ALL_FIXES))}',
+    )
     args = parser.parse_args()
+
+    if args.fixes:
+        unknown = set(args.fixes) - ALL_FIXES
+        if unknown:
+            parser.error(f'Unknown fix(es): {", ".join(sorted(unknown))}. Available: {", ".join(sorted(ALL_FIXES))}')
+        fixes = frozenset(args.fixes)
+    else:
+        fixes = ALL_FIXES
 
     csv_files = _find_metadata_files(args.data_dir)
     if not csv_files:
@@ -88,12 +123,12 @@ def main():
         return
 
     mode = "APPLY" if args.apply else "DRY-RUN"
-    print(f"[{mode}] Scanning {len(csv_files)} metadata file(s) in {args.data_dir}")
+    print(f"[{mode}] fixes={', '.join(sorted(fixes))}  files={len(csv_files)}")
 
     total_rows = total_changed = 0
     file_stats: list[tuple[str, int, int]] = []
     for csv_path in csv_files:
-        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview)
+        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes)
         total_rows += rows
         total_changed += changed
         if changed:
@@ -109,5 +144,7 @@ def main():
 
 # Example: python -m ch_ds.normalize --data_dir ./dataset
 # Example: python -m ch_ds.normalize --data_dir ./dataset --apply
+# Example: python -m ch_ds.normalize --data_dir ./dataset --fixes wrong_dots ascii_quot
+# Example: python -m ch_ds.normalize --data_dir ./dataset --fixes ascii_quot dialogue_dash double_dash double_space invisible punct_repeated space_before wrong_dots
 if __name__ == '__main__':
     main()
