@@ -105,6 +105,7 @@ def run_wer_analysis(model_id: str = None, eval_size: int = None):
     model_id = model_id or BASE_MODEL_ID
     print(f"Model: {model_id}")
     processor = WhisperProcessor.from_pretrained(model_id)
+    processor.tokenizer.clean_up_tokenization_spaces = False
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK)
 
     ds = load_dataset("audiofolder", data_dir=DATASET_DIR, split="train")

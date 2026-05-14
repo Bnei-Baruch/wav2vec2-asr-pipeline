@@ -78,23 +78,6 @@ def check_punct(text: str) -> list[str]:
     return flags
 
 
-def normalize_text(text: str) -> str:
-    """Fix punctuation inconsistencies while preserving punctuation."""
-    if PUNCT_INVISIBLE.search(text):
-        text = PUNCT_INVISIBLE.sub('', text)
-    if PUNCT_DIALOGUE_DASH.search(text):
-        text = PUNCT_DIALOGUE_DASH.sub('', text)
-    if PUNCT_DOUBLE_DASH.search(text):
-        text = PUNCT_DOUBLE_DASH.sub('—', text)
-    if PUNCT_REPEATED.search(text):
-        text = PUNCT_REPEATED.sub(r'\1', text)
-    if PUNCT_DOUBLE_SPACE.search(text):
-        text = PUNCT_DOUBLE_SPACE.sub(' ', text)
-    if PUNCT_SPACE_BEFORE.search(text):
-        text = PUNCT_SPACE_BEFORE.sub(r'\1', text)
-    return text.strip()
-
-
 def punct_detail(text: str, flag: str) -> str:
     """Return a short string describing where the punctuation issue was found."""
     if flag == 'punct_repeated':
