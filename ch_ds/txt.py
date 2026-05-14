@@ -126,19 +126,21 @@ def main():
     samples_buf: dict[str, list] = {ft: [] for ft in config.FLAG_ORDER}
 
     try:
-        fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
-        fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
-        ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
-        fl = open(f'{base}_latin.csv',   'w', newline='', encoding='utf-8')
+        fa  = open(f'{base}_all.csv',              'w', newline='', encoding='utf-8')
+        fp  = open(f'{base}_passed.csv',            'w', newline='', encoding='utf-8')
+        ff  = open(f'{base}_flagged.csv',           'w', newline='', encoding='utf-8')
+        fl  = open(f'{base}_latin.csv',             'w', newline='', encoding='utf-8')
+        fpu = open(f'{base}_punct_unbalanced.csv',  'w', newline='', encoding='utf-8')
     except OSError as e:
         log.error('Cannot open output CSV files: %s', e)
         return
 
-    wa, wp, wf, wl = csv.writer(fa), csv.writer(fp), csv.writer(ff), csv.writer(fl)
+    wa, wp, wf, wl, wpu = csv.writer(fa), csv.writer(fp), csv.writer(ff), csv.writer(fl), csv.writer(fpu)
     wa.writerow(['source', 'index', 'wav_path', 'text', 'flags', 'passed'])
     wp.writerow(['source', 'index', 'wav_path', 'text'])
     wf.writerow(['source', 'index', 'wav_path', 'text', 'flags'])
     wl.writerow(['source', 'index', 'wav_path', 'text'])
+    wpu.writerow(['source', 'index', 'wav_path', 'text'])
 
     try:
         for csv_path in metadata_files:
@@ -161,9 +163,10 @@ def main():
 
                 if 'latin' in flags:
                     wl.writerow(row)
+                if 'punct_unbalanced' in flags:
+                    wpu.writerow(row)
 
-                # latin is a soft flag — entry still passes unless other flags present
-                reject_flags = [f for f in flags if f != 'latin']
+                reject_flags = [f for f in flags if f not in config.ALL_TXT_SOFT_FLAGS]
 
                 if reject_flags:
                     n_flagged += 1
@@ -178,7 +181,7 @@ def main():
                     wp.writerow(row)
 
     finally:
-        fa.close(); fp.close(); ff.close(); fl.close()
+        fa.close(); fp.close(); ff.close(); fl.close(); fpu.close()
 
     if n == 0:
         log.error('No entries found — check metadata.csv format')
@@ -208,7 +211,7 @@ def main():
                         flag_type, os.path.relpath(entry.source, data_dir),
                         entry.index, entry.text[:80])
 
-    log.info('Saved: %s_{all,passed,flagged,latin}.csv', base)
+    log.info('Saved: %s_{all,passed,flagged,latin,punct_unbalanced}.csv', base)
     log.info('Done.')
 
 
