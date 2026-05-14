@@ -4,6 +4,8 @@ import argparse
 import csv
 import os
 
+import re
+
 from .punct import (
     PUNCT_DIALOGUE_DASH,
     PUNCT_DOUBLE_DASH,
@@ -12,6 +14,8 @@ from .punct import (
     PUNCT_REPEATED,
     PUNCT_SPACE_BEFORE,
 )
+
+_SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 
 
 def normalize_text(text: str) -> str:
@@ -27,7 +31,7 @@ def normalize_text(text: str) -> str:
     if PUNCT_DOUBLE_SPACE.search(text):
         text = PUNCT_DOUBLE_SPACE.sub(' ', text)
     if PUNCT_SPACE_BEFORE.search(text):
-        text = PUNCT_SPACE_BEFORE.sub(r'\1', text)
+        text = _SPACE_BEFORE_SUB.sub(r'\1', text)
     return text.strip()
 
 
