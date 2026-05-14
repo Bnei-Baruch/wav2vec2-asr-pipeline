@@ -18,8 +18,8 @@ from .punct import (
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 # .. or ....+ → ... (wrong dot count instead of ellipsis)
 _WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
-# ASCII "" between Hebrew letters → ״ (U+05F4)
-_ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])""(?=[א-ת])')
+# ASCII " or "" between Hebrew letters → ״ (U+05F4)
+_ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])\x22{1,2}(?=[א-ת])')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
