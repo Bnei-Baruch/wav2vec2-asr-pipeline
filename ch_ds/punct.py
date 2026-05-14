@@ -30,7 +30,7 @@ PUNCT_DIALOGUE_DASH = re.compile(r'^-\s*')
 # spelling variants found in dataset
 SPELLING_VARIANT   = re.compile(r'\bמאד\b|\bהכול\b')
 # ASCII " used as Hebrew gershayim (between letters) or geresh (at end of word/before space)
-ASCII_QUOT_ABBR    = re.compile(r'(?<=[א-ת])""(?=[א-ת])|(?<=[א-ת])"(?=[\s,;.!?]|$)')
+ASCII_QUOT_ABBR    = re.compile(r'(?<=[א-ת])""(?=[א-ת])')
 
 
 def _unbalanced_brackets(text: str) -> bool:

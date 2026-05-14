@@ -18,10 +18,8 @@ from .punct import (
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 # .. or ....+ → ... (wrong dot count instead of ellipsis)
 _WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
-# ASCII " used as Hebrew gershayim between letters → ״ (U+05F4)
+# ASCII "" between Hebrew letters → ״ (U+05F4)
 _ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])""(?=[א-ת])')
-# ASCII " used as Hebrew geresh at end of word → ׳ (U+05F3)
-_ASCII_GERESH     = re.compile(r'(?<=[א-ת])"(?=[\s,;.!?]|$)')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
@@ -44,11 +42,8 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
         text = PUNCT_DOUBLE_DASH.sub('—', text)
     if 'wrong_dots' in fixes and _WRONG_DOTS.search(text):
         text = _WRONG_DOTS.sub('...', text)
-    if 'ascii_quot' in fixes:
-        if _ASCII_GERSHAYIM.search(text):
-            text = _ASCII_GERSHAYIM.sub('״', text)
-        if _ASCII_GERESH.search(text):
-            text = _ASCII_GERESH.sub('׳', text)
+    if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text):
+        text = _ASCII_GERSHAYIM.sub('״', text)
     if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
     if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
