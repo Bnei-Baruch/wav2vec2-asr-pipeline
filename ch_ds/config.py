@@ -63,8 +63,8 @@ WX_FLAG_ORDER = [
 
 # --- all.py ---
 ALL_RUN_LANG        = True
-# text flags that always reject an entry regardless of ratio
-ALL_TXT_FATAL_FLAGS = {'cyrillic', 'html_tag', 'empty'}
+# text flags that do NOT reject an entry; all other flags are fatal
+ALL_TXT_SOFT_FLAGS  = {'latin', 'punct_unbalanced'}
 
 FLAG_ORDER = [
     'cyrillic',

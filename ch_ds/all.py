@@ -62,7 +62,7 @@ class EntryResult:
 
 def _check_txt(entry: MetadataEntry) -> tuple[bool, list[str]]:
     flags = check_entry(entry)
-    fatal = [f for f in flags if f in config.ALL_TXT_FATAL_FLAGS]
+    fatal = [f for f in flags if f not in config.ALL_TXT_SOFT_FLAGS]
     if fatal:
         return False, [f'txt:{"|".join(fatal)}']
     return True, []
