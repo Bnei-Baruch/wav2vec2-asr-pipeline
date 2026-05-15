@@ -32,6 +32,17 @@ _ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
 # dash that is NOT at position 0 (mid-line dash, not a dialogue opener)
 _DASH_MID_LINE = re.compile(r'(?<= )-')
 
+_FIX_ORDER: tuple[str, ...] = (
+    'invisible',
+    'ascii_quot',
+    'wrong_dots',
+    'double_dash',
+    'dialogue_dash',
+    'punct_repeated',
+    'space_before',
+    'double_space',
+)
+
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
     'dialogue_dash',
@@ -80,6 +91,7 @@ def _process_file(
     fixes: frozenset[str],
     word_log: dict[tuple[str, str], tuple[str, str]] | None = None,
     dash_log: list[tuple[str, str]] | None = None,
+    fix_counts: dict[str, int] | None = None,
 ) -> tuple[int, int]:
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
@@ -94,6 +106,15 @@ def _process_file(
         new_rows.append({**row, 'sentence': norm})
         if norm != orig:
             changed.append((i, orig, norm))
+            if fix_counts is not None:
+                current = orig
+                for fix_name in _FIX_ORDER:
+                    if fix_name not in fixes:
+                        continue
+                    after = normalize_text(current, apply, frozenset({fix_name}))
+                    if after != current:
+                        fix_counts[fix_name] = fix_counts.get(fix_name, 0) + 1
+                    current = after
             if word_log is not None:
                 for w_orig in _ASCII_GERSHAYIM_WORD.findall(orig):
                     w_norm = _ASCII_GERSHAYIM.sub('״', w_orig)
@@ -147,11 +168,12 @@ def main():
 
     word_log: dict[tuple[str, str], tuple[str, str]] | None = {} if fixes == frozenset({'ascii_quot'}) and not args.apply else None
     dash_log: list[tuple[str, str]] | None = [] if 'dialogue_dash' in fixes else None
+    fix_counts: dict[str, int] = {}
 
     total_rows = total_changed = 0
     file_stats: list[tuple[str, int, int]] = []
     for csv_path in csv_files:
-        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes, word_log=word_log, dash_log=dash_log)
+        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes, word_log=word_log, dash_log=dash_log, fix_counts=fix_counts)
         total_rows += rows
         total_changed += changed
         if changed:
@@ -161,6 +183,11 @@ def main():
     print(f"Total rows:    {total_rows:,}")
     print(f"Changed rows:  {total_changed:,}  ({100 * total_changed / total_rows:.2f}%)" if total_rows else "Changed rows:  0")
     print(f"Files with changes: {len(file_stats)}")
+    if fix_counts:
+        print("\nPer-fix row counts (in pipeline order):")
+        for fix_name in _FIX_ORDER:
+            if fix_name in fix_counts:
+                print(f"  {fix_name:<18} {fix_counts[fix_name]:,}")
     if not args.apply and total_changed:
         print(f"\nRun with --apply to write changes.")
 
