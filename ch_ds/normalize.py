@@ -16,8 +16,8 @@ from .punct import (
 )
 
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
-# .. or ....+ → ... (wrong dot count instead of ellipsis)
-_WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
+# 2+ consecutive dots → … (U+2026 ellipsis)
+_WRONG_DOTS       = re.compile(r'\.{2,}(?=\s|$)')
 # ASCII " or "" between Hebrew letters → ״ (U+05F4).
 # Two cases are replaced:
 #   A) ≥2 Hebrew letters before the quote (e.g. צה"ל, מש"ה)
@@ -54,7 +54,7 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
     if 'double_dash' in fixes and PUNCT_DOUBLE_DASH.search(text):
         text = PUNCT_DOUBLE_DASH.sub('—', text)
     if 'wrong_dots' in fixes and _WRONG_DOTS.search(text):
-        text = _WRONG_DOTS.sub('...', text)
+        text = _WRONG_DOTS.sub('…', text)
     if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text) and not _HAS_CLOSING_QUOT.search(text):
         text = _ASCII_GERSHAYIM.sub('״', text)
     if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
