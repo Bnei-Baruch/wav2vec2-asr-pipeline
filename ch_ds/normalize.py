@@ -31,6 +31,8 @@ _ASCII_GERSHAYIM = re.compile(
 _HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
 # full Hebrew word containing " between letters (for word-level logging)
 _ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
+# dash that is NOT at position 0 (mid-line dash, not a dialogue opener)
+_DASH_MID_LINE = re.compile(r'(?<=.)-')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
@@ -79,6 +81,7 @@ def _process_file(
     preview_limit: int,
     fixes: frozenset[str],
     word_log: dict[tuple[str, str], tuple[str, str]] | None = None,
+    dash_log: list[tuple[str, str]] | None = None,
 ) -> tuple[int, int]:
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
@@ -98,6 +101,8 @@ def _process_file(
                     w_norm = _ASCII_GERSHAYIM.sub('״', w_orig)
                     if w_orig != w_norm:
                         word_log.setdefault((w_orig, w_norm), (orig, csv_path))
+        if dash_log is not None and _DASH_MID_LINE.search(orig):
+            dash_log.append((orig, csv_path))
 
     if changed and not apply:
         shown = min(len(changed), preview_limit)
@@ -143,11 +148,12 @@ def main():
     print(f"[{mode}] fixes={', '.join(sorted(fixes))}  files={len(csv_files)}")
 
     word_log: dict[tuple[str, str], tuple[str, str]] | None = {} if fixes == frozenset({'ascii_quot'}) and not args.apply else None
+    dash_log: list[tuple[str, str]] | None = [] if 'dialogue_dash' in fixes else None
 
     total_rows = total_changed = 0
     file_stats: list[tuple[str, int, int]] = []
     for csv_path in csv_files:
-        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes, word_log=word_log)
+        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes, word_log=word_log, dash_log=dash_log)
         total_rows += rows
         total_changed += changed
         if changed:
@@ -167,6 +173,14 @@ def main():
             for (w_orig, w_norm), (sentence, csv_path) in sorted(word_log.items()):
                 f.write(f"{w_orig}\t{w_norm}\t{sentence}\t{csv_path}\n")
         print(f"\nUnique ascii_quot replacements ({len(word_log)}): {out_path}")
+
+    if dash_log is not None:
+        os.makedirs('./result', exist_ok=True)
+        out_path = os.path.join('./result', 'dialogue_dash_mid.txt')
+        with open(out_path, 'w', encoding='utf-8') as f:
+            for sentence, csv_path in dash_log:
+                f.write(f"{sentence}\t{csv_path}\n")
+        print(f"\nMid-line dashes ({len(dash_log)} rows): {out_path}")
 
 
 # Example: python -m ch_ds.normalize --data_dir ./dataset
