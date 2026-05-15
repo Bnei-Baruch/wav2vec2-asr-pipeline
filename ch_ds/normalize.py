@@ -18,8 +18,15 @@ from .punct import (
 _SPACE_BEFORE_SUB = re.compile(r'\s([,;.!?])(?!\Z)')
 # .. or ....+ → ... (wrong dot count instead of ellipsis)
 _WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
-# ASCII " or "" between Hebrew letters → ״ (U+05F4)
-_ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])\x22{1,2}(?=[א-ת])')
+# ASCII " or "" between Hebrew letters → ״ (U+05F4).
+# Two cases are replaced:
+#   A) ≥2 Hebrew letters before the quote (e.g. צה"ל, מש"ה)
+#   B) exactly 1 Hebrew letter before AND exactly 1 after — 2-letter abbrev (e.g. ז"א, ד"ר)
+# Case excluded: 1 letter before + ≥2 after (e.g. ש"אבא — real speech, not abbreviation)
+_ASCII_GERSHAYIM = re.compile(
+    r'(?<=[א-ת]{2})\x22{1,2}(?=[א-ת])'                              # A: ≥2 before
+    r'|(?<=[א-ת])(?<![א-ת]{2})\x22{1,2}(?=[א-ת])(?![א-ת]{2})'      # B: exactly 1 before, 1 after
+)
 # " not followed by a Hebrew letter — indicates a real closing quote in the text
 _HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
 # full Hebrew word containing " between letters (for word-level logging)
@@ -89,7 +96,8 @@ def _process_file(
             if word_log is not None:
                 for w_orig in _ASCII_GERSHAYIM_WORD.findall(orig):
                     w_norm = _ASCII_GERSHAYIM.sub('״', w_orig)
-                    word_log.setdefault((w_orig, w_norm), (orig, csv_path))
+                    if w_orig != w_norm:
+                        word_log.setdefault((w_orig, w_norm), (orig, csv_path))
 
     if changed and not apply:
         shown = min(len(changed), preview_limit)
