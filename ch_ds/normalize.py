@@ -32,7 +32,7 @@ _HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
 # full Hebrew word containing " between letters (for word-level logging)
 _ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
 # dash that is NOT at position 0 (mid-line dash, not a dialogue opener)
-_DASH_MID_LINE = re.compile(r'(?<=.)-')
+_DASH_MID_LINE = re.compile(r'(?<= )-')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
