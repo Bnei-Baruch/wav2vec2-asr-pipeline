@@ -71,7 +71,7 @@ def _process_file(
     apply: bool,
     preview_limit: int,
     fixes: frozenset[str],
-    word_log: set[tuple[str, str]] | None = None,
+    word_log: dict[tuple[str, str], tuple[str, str]] | None = None,
 ) -> tuple[int, int]:
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
@@ -89,7 +89,7 @@ def _process_file(
             if word_log is not None:
                 for w_orig in _ASCII_GERSHAYIM_WORD.findall(orig):
                     w_norm = _ASCII_GERSHAYIM.sub('״', w_orig)
-                    word_log.add((w_orig, w_norm))
+                    word_log.setdefault((w_orig, w_norm), (orig, csv_path))
 
     if changed and not apply:
         shown = min(len(changed), preview_limit)
@@ -134,7 +134,7 @@ def main():
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(f"[{mode}] fixes={', '.join(sorted(fixes))}  files={len(csv_files)}")
 
-    word_log: set[tuple[str, str]] | None = set() if fixes == frozenset({'ascii_quot'}) and not args.apply else None
+    word_log: dict[tuple[str, str], tuple[str, str]] | None = {} if fixes == frozenset({'ascii_quot'}) and not args.apply else None
 
     total_rows = total_changed = 0
     file_stats: list[tuple[str, int, int]] = []
@@ -153,10 +153,11 @@ def main():
         print(f"\nRun with --apply to write changes.")
 
     if word_log:
-        out_path = os.path.join(args.data_dir, 'ascii_quot_words.txt')
+        os.makedirs('./result', exist_ok=True)
+        out_path = os.path.join('./result', 'ascii_quot_words.txt')
         with open(out_path, 'w', encoding='utf-8') as f:
-            for orig, norm in sorted(word_log):
-                f.write(f"{orig}\t{norm}\n")
+            for (w_orig, w_norm), (sentence, csv_path) in sorted(word_log.items()):
+                f.write(f"{w_orig}\t{w_norm}\t{sentence}\t{csv_path}\n")
         print(f"\nUnique ascii_quot replacements ({len(word_log)}): {out_path}")
 
 
