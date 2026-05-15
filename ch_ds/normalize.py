@@ -64,8 +64,11 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
         text = _WRONG_DOTS.sub('…', text)
     if 'double_dash' in fixes and PUNCT_DOUBLE_DASH.search(text):
         text = PUNCT_DOUBLE_DASH.sub('—', text)
-    if 'dialogue_dash' in fixes and PUNCT_DIALOGUE_DASH.search(text):
-        text = PUNCT_DIALOGUE_DASH.sub('', text)
+    if 'dialogue_dash' in fixes:
+        if PUNCT_DIALOGUE_DASH.search(text):
+            text = PUNCT_DIALOGUE_DASH.sub('', text)
+        if _DASH_MID_LINE.search(text):
+            text = _DASH_MID_LINE.sub('', text)
     if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
     if 'space_before' in fixes and PUNCT_SPACE_BEFORE.search(text) and not apply:
