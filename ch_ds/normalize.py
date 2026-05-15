@@ -27,8 +27,6 @@ _ASCII_GERSHAYIM = re.compile(
     r'(?<=[א-ת]{2})\x22{1,2}(?=[א-ת])'                              # A: ≥2 before
     r'|(?<=[א-ת])(?<![א-ת]{2})\x22{1,2}(?=[א-ת])(?![א-ת]{2})'      # B: exactly 1 before, 1 after
 )
-# " not followed by a Hebrew letter — indicates a real closing quote in the text
-_HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
 # full Hebrew word containing " between letters (for word-level logging)
 _ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
 # dash that is NOT at position 0 (mid-line dash, not a dialogue opener)
@@ -49,20 +47,20 @@ ALL_FIXES: frozenset[str] = frozenset({
 def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) -> str:
     if 'invisible' in fixes and PUNCT_INVISIBLE.search(text):
         text = PUNCT_INVISIBLE.sub('', text)
-    if 'dialogue_dash' in fixes and PUNCT_DIALOGUE_DASH.search(text):
-        text = PUNCT_DIALOGUE_DASH.sub('', text)
-    if 'double_dash' in fixes and PUNCT_DOUBLE_DASH.search(text):
-        text = PUNCT_DOUBLE_DASH.sub('—', text)
+    if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text):
+        text = _ASCII_GERSHAYIM.sub('״', text)
     if 'wrong_dots' in fixes and _WRONG_DOTS.search(text):
         text = _WRONG_DOTS.sub('…', text)
-    if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text) and not _HAS_CLOSING_QUOT.search(text):
-        text = _ASCII_GERSHAYIM.sub('״', text)
+    if 'double_dash' in fixes and PUNCT_DOUBLE_DASH.search(text):
+        text = PUNCT_DOUBLE_DASH.sub('—', text)
+    if 'dialogue_dash' in fixes and PUNCT_DIALOGUE_DASH.search(text):
+        text = PUNCT_DIALOGUE_DASH.sub('', text)
     if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
         text = PUNCT_REPEATED.sub(r'\1', text)
-    if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
-        text = PUNCT_DOUBLE_SPACE.sub(' ', text)
     if 'space_before' in fixes and PUNCT_SPACE_BEFORE.search(text) and not apply:
         text = _SPACE_BEFORE_SUB.sub(r'\1', text)
+    if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
+        text = PUNCT_DOUBLE_SPACE.sub(' ', text)
     return text.strip()
 
 
