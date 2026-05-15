@@ -22,6 +22,8 @@ _WRONG_DOTS       = re.compile(r'(?<!\.)\.{2}(?!\.)(?=\s|$)|\.{4,}(?=\s|$)')
 _ASCII_GERSHAYIM  = re.compile(r'(?<=[א-ת])\x22{1,2}(?=[א-ת])')
 # " not followed by a Hebrew letter — indicates a real closing quote in the text
 _HAS_CLOSING_QUOT = re.compile(r'\x22(?![א-ת])')
+# full Hebrew word containing " between letters (for word-level logging)
+_ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
 
 ALL_FIXES: frozenset[str] = frozenset({
     'invisible',
@@ -64,7 +66,13 @@ def _find_metadata_files(data_dir: str) -> list[str]:
     return sorted(result)
 
 
-def _process_file(csv_path: str, apply: bool, preview_limit: int, fixes: frozenset[str]) -> tuple[int, int]:
+def _process_file(
+    csv_path: str,
+    apply: bool,
+    preview_limit: int,
+    fixes: frozenset[str],
+    word_log: set[tuple[str, str]] | None = None,
+) -> tuple[int, int]:
     with open(csv_path, encoding='utf-8-sig', newline='') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
@@ -78,6 +86,10 @@ def _process_file(csv_path: str, apply: bool, preview_limit: int, fixes: frozens
         new_rows.append({**row, 'sentence': norm})
         if norm != orig:
             changed.append((i, orig, norm))
+            if word_log is not None:
+                for w_orig in _ASCII_GERSHAYIM_WORD.findall(orig):
+                    w_norm = _ASCII_GERSHAYIM.sub('״', w_orig)
+                    word_log.add((w_orig, w_norm))
 
     if changed and not apply:
         shown = min(len(changed), preview_limit)
@@ -122,10 +134,12 @@ def main():
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(f"[{mode}] fixes={', '.join(sorted(fixes))}  files={len(csv_files)}")
 
+    word_log: set[tuple[str, str]] | None = set() if fixes == frozenset({'ascii_quot'}) and not args.apply else None
+
     total_rows = total_changed = 0
     file_stats: list[tuple[str, int, int]] = []
     for csv_path in csv_files:
-        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes)
+        rows, changed = _process_file(csv_path, apply=args.apply, preview_limit=args.preview, fixes=fixes, word_log=word_log)
         total_rows += rows
         total_changed += changed
         if changed:
@@ -137,6 +151,13 @@ def main():
     print(f"Files with changes: {len(file_stats)}")
     if not args.apply and total_changed:
         print(f"\nRun with --apply to write changes.")
+
+    if word_log:
+        out_path = os.path.join(args.data_dir, 'ascii_quot_words.txt')
+        with open(out_path, 'w', encoding='utf-8') as f:
+            for orig, norm in sorted(word_log):
+                f.write(f"{orig}\t{norm}\n")
+        print(f"\nUnique ascii_quot replacements ({len(word_log)}): {out_path}")
 
 
 # Example: python -m ch_ds.normalize --data_dir ./dataset
