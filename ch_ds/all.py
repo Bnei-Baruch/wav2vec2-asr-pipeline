@@ -75,6 +75,16 @@ def _check_audio(wav_path: str) -> tuple[bool, list[str]]:
     return True, []
 
 
+def _check_mismatch(text: str, duration_s: float) -> tuple[bool, list[str]]:
+    words = len(text.split())
+    wps = words / duration_s if duration_s > 0 else float("inf")
+    if wps > config.MISMATCH_MAX_WPS:
+        return False, [f'mismatch:text_too_dense']
+    if wps < config.MISMATCH_MIN_WPS:
+        return False, [f'mismatch:text_too_sparse']
+    return True, []
+
+
 def _check_lang(wav_path: str, model, tmp_dir: str) -> tuple[bool, list[str]]:
     import numpy as np
 
@@ -200,6 +210,16 @@ def main():
                     log.error('_check_audio failed for %s: %s', rel, e)
                     r.rejected = True
                     r.reasons.append('audio_error')
+
+                if r.duration_s is not None:
+                    try:
+                        ok_mm, reasons_mm = _check_mismatch(entry.text, r.duration_s)
+                        if not ok_mm:
+                            r.rejected = True
+                            r.reasons.extend(reasons_mm)
+                            log.debug('  FAIL mismatch: %s', reasons_mm)
+                    except Exception as e:
+                        log.error('_check_mismatch failed for %s: %s', rel, e)
 
                 if config.ALL_RUN_LANG and lang_model is not None:
                     try:

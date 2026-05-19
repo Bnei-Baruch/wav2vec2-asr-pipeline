@@ -61,6 +61,15 @@ WX_FLAG_ORDER = [
     'empty_transcription',
 ]
 
+# --- mismatch check (audio duration vs. word count) ---
+MISMATCH_MIN_WPS = 0.3   # words/sec below this → text_too_sparse
+MISMATCH_MAX_WPS = 5.0   # words/sec above this → text_too_dense
+
+MISMATCH_FLAG_ORDER = [
+    'text_too_dense',
+    'text_too_sparse',
+]
+
 # --- all.py ---
 ALL_RUN_LANG        = True
 # text flags that do NOT reject an entry; all other flags are fatal

@@ -20,16 +20,16 @@ from ch_ds.punct import check_punct
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 
-def analyze_errors(pred_strs: list[str], ref_strs: list[str]) -> None:
+def analyze_errors(pred_strs: list[str], ref_strs: list[str], file_paths: list[str] = None) -> None:
     total_sub = total_del = total_ins = total_hits = 0
     substitution_pairs: Counter = Counter()
     deleted_words: Counter = Counter()
     inserted_words: Counter = Counter()
     flag_wer: dict[str, list[float]] = defaultdict(list)
     clean_wer: list[float] = []
-    per_sample: list[tuple[float, str, str]] = []
+    per_sample: list[tuple[float, str, str, str]] = []
 
-    for pred, ref in zip(pred_strs, ref_strs):
+    for i, (pred, ref) in enumerate(zip(pred_strs, ref_strs)):
         try:
             r = process_words(ref, pred)
         except Exception:
@@ -62,7 +62,8 @@ def analyze_errors(pred_strs: list[str], ref_strs: list[str]) -> None:
         else:
             clean_wer.append(r.wer)
 
-        per_sample.append((r.wer, ref, pred))
+        path = file_paths[i] if file_paths else ""
+        per_sample.append((r.wer, ref, pred, path))
 
     total_errors = total_sub + total_del + total_ins
 
@@ -96,10 +97,18 @@ def analyze_errors(pred_strs: list[str], ref_strs: list[str]) -> None:
         print(f"  {count:4d}x  {w!r}")
 
     print(f"\n--- Worst 10 samples ---")
-    for wer_val, ref, hyp in sorted(per_sample, reverse=True)[:10]:
-        print(f"  WER={wer_val:.3f}")
+    for wer_val, ref, hyp, path in sorted(per_sample, reverse=True)[:10]:
+        print(f"  WER={wer_val:.3f}  {path}")
         print(f"    REF: {ref[:120]}")
         print(f"    HYP: {hyp[:120]}")
+
+    print(f"\n--- Suspected mismatch files (WER > 1.5) ---")
+    mismatches = [(wer_val, path, ref, hyp) for wer_val, ref, hyp, path in per_sample if wer_val > 1.5]
+    mismatches.sort(reverse=True)
+    for wer_val, path, ref, hyp in mismatches:
+        print(f"  WER={wer_val:.3f}  {path}")
+        print(f"    REF: {ref[:80]}")
+        print(f"    HYP: {hyp[:80]}")
 
 
 def run_wer_analysis(model_id: str = None, eval_size: int = None):
@@ -146,6 +155,8 @@ def run_wer_analysis(model_id: str = None, eval_size: int = None):
         processing_class=processor,
     )
 
+    file_paths = [s["audio"]["path"] for s in eval_ds]
+
     print("Running inference...")
     output = trainer.predict(eval_ds)
 
@@ -165,7 +176,7 @@ def run_wer_analysis(model_id: str = None, eval_size: int = None):
         print(f"\nOverall WER (with punct) : {overall_wer:.4f} ({overall_wer * 100:.2f}%)")
         print(f"Overall WER (no punct)   : {norm_wer:.4f} ({norm_wer * 100:.2f}%)")
         print(f"Punct impact             : {(overall_wer - norm_wer) * 100:+.2f}pp")
-        analyze_errors(pred_strs, ref_strs)
+        analyze_errors(pred_strs, ref_strs, file_paths)
 
     return {"eval_wer": overall_wer, "eval_wer_norm": norm_wer}
 
