@@ -11,6 +11,7 @@ from transformers import (
     WhisperProcessor,
     Seq2SeqTrainingArguments,
 )
+from transformers.models.whisper.english_normalizer import BasicTextNormalizer
 
 from .constants import BASE_MODEL_ID, LANGUAGE, TASK, DATASET_DIR
 from .train import DataCollatorSpeechSeq2SeqWithPadding, BF16Seq2SeqTrainer, EVAL_SIZE
@@ -155,11 +156,18 @@ def run_wer_analysis(model_id: str = None, eval_size: int = None):
 
     overall_wer = wer_metric.compute(predictions=pred_strs, references=ref_strs)
 
+    normalizer = BasicTextNormalizer()
+    norm_pred = [normalizer(s) for s in pred_strs]
+    norm_ref  = [normalizer(s) for s in ref_strs]
+    norm_wer  = wer_metric.compute(predictions=norm_pred, references=norm_ref)
+
     if trainer.is_world_process_zero():
-        print(f"\nOverall WER: {overall_wer:.4f} ({overall_wer * 100:.2f}%)")
+        print(f"\nOverall WER (with punct) : {overall_wer:.4f} ({overall_wer * 100:.2f}%)")
+        print(f"Overall WER (no punct)   : {norm_wer:.4f} ({norm_wer * 100:.2f}%)")
+        print(f"Punct impact             : {(overall_wer - norm_wer) * 100:+.2f}pp")
         analyze_errors(pred_strs, ref_strs)
 
-    return {"eval_wer": overall_wer}
+    return {"eval_wer": overall_wer, "eval_wer_norm": norm_wer}
 
 
 # Example: torchrun --nproc_per_node=2 -m wisper.wer_analysis --model ./models/whisper-large-v3-he/final > logs/wer_1.log 2> logs/wer_2.log

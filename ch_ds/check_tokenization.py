@@ -66,5 +66,8 @@ def main() -> None:
         print(f"(showing first {shown}, run with --limit N to see more)")
 
 
+# Example: python -m ch_ds.check_tokenization
+# Example: python -m ch_ds.check_tokenization --data_dir ./dataset --limit 50
+# Example: python -m ch_ds.check_tokenization --model_id ivrit-ai/whisper-large-v3 --limit 100
 if __name__ == "__main__":
     main()
