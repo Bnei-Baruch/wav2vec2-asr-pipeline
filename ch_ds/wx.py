@@ -231,7 +231,7 @@ def _run_shard(rank: int, world_size: int, all_entries: list, base: str, model: 
                 wp.writerow(row_base)
             fa.flush()
             fp.flush()
-            wf.flush()
+            ff.flush()
     finally:
         fa.close(); fp.close(); ff.close()
 
