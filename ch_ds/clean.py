@@ -65,9 +65,10 @@ def flag_summary(rejected_csv: str) -> None:
         log.info('No rejected entries found.')
         return
 
-    log.info('--- Rejection counts by flag ---')
+    total = sum(counts.values())
+    log.info('Rejection counts by flag (%d total flag hits):', total)
     for flag, n in sorted(counts.items(), key=lambda x: -x[1]):
-        log.info('  %-40s  %d', flag, n)
+        log.debug('  %-40s  %d', flag, n)
     log.info('')
 
 
