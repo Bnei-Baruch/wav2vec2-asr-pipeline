@@ -50,7 +50,7 @@ WX_MODEL          = "large-v3"
 WX_DEVICE         = None        # None = auto
 WX_COMPUTE_TYPE   = "float16"
 WX_LANGUAGE       = "he"
-WX_BATCH_SIZE     = 8
+WX_BATCH_SIZE     = 32
 WX_WER_THRESHOLD  = 0.5
 WX_ALIGN          = True
 

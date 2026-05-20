@@ -89,7 +89,7 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
     return jiwer_wer(reference, hypothesis)
 
 
-def run(entries: list[MetadataEntry], device: str, device_index: int, compute_type: str, model: str | None = None) -> list[WxResult]:
+def run(entries: list[MetadataEntry], device: str, device_index: int, compute_type: str, model: str | None = None):
     # pyannote VAD checkpoints contain omegaconf objects incompatible with weights_only=True
     import functools
     _orig_load = torch.load
@@ -122,8 +122,6 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
         except Exception as e:
             log.warning('Alignment model unavailable for lang=%s: %s', config.WX_LANGUAGE, e)
 
-    results: list[WxResult] = []
-
     for entry in tqdm(entries, desc='whisperx QC', unit='file'):
         rel = os.path.relpath(entry.wav_path, config.DATA_DIR)
         r = WxResult(wav_path=entry.wav_path, source=entry.source, index=entry.index)
@@ -131,7 +129,7 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
 
         if not r.reference:
             r.flags.append('empty_transcription')
-            results.append(r)
+            yield r
             continue
 
         try:
@@ -140,7 +138,7 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
         except Exception as e:
             log.warning('Transcription failed for %s: %s', rel, e)
             r.flags.append('empty_transcription')
-            results.append(r)
+            yield r
             continue
 
         r.detected_lang = wx_out.get('language')
@@ -150,7 +148,7 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
         if not r.hypothesis:
             log.debug('[empty_transcription] %s', rel)
             r.flags.append('empty_transcription')
-            results.append(r)
+            yield r
             continue
 
         if r.detected_lang and r.detected_lang != config.WX_LANGUAGE:
@@ -177,9 +175,7 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
             except Exception as e:
                 log.debug('Alignment failed for %s: %s', rel, e)
 
-        results.append(r)
-
-    return results
+        yield r
 
 
 def _run_shard(rank: int, world_size: int, all_entries: list, base: str, model: str | None = None) -> None:
@@ -233,6 +229,9 @@ def _run_shard(rank: int, world_size: int, all_entries: list, base: str, model: 
             else:
                 wa.writerow(row_base + ['', 'yes'])
                 wp.writerow(row_base)
+            fa.flush()
+            fp.flush()
+            wf.flush()
     finally:
         fa.close(); fp.close(); ff.close()
 
