@@ -89,7 +89,7 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
     return jiwer_wer(reference, hypothesis)
 
 
-def run(entries: list[MetadataEntry], device: str, device_index: int, compute_type: str) -> list[WxResult]:
+def run(entries: list[MetadataEntry], device: str, device_index: int, compute_type: str, model: str | None = None) -> list[WxResult]:
     # pyannote VAD checkpoints contain omegaconf objects incompatible with weights_only=True
     import functools
     _orig_load = torch.load
@@ -101,10 +101,11 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
 
     import whisperx
 
+    model_name = model or config.WX_MODEL
     log.info('Loading WhisperX model: %s  device=%s  device_index=%d  compute_type=%s',
-             config.WX_MODEL, device, device_index, compute_type)
+             model_name, device, device_index, compute_type)
     model = whisperx.load_model(
-        config.WX_MODEL,
+        model_name,
         device,
         device_index=device_index,
         compute_type=compute_type,
@@ -181,7 +182,7 @@ def run(entries: list[MetadataEntry], device: str, device_index: int, compute_ty
     return results
 
 
-def _run_shard(rank: int, world_size: int, all_entries: list, base: str) -> None:
+def _run_shard(rank: int, world_size: int, all_entries: list, base: str, model: str | None = None) -> None:
     device, device_index, compute_type = _resolve_device(rank)
     entries = all_entries[rank::world_size]
     suffix = f'_r{rank}' if world_size > 1 else ''
@@ -212,7 +213,7 @@ def _run_shard(rank: int, world_size: int, all_entries: list, base: str) -> None
     samples_buf: dict[str, list] = {ft: [] for ft in config.WX_FLAG_ORDER}
 
     try:
-        for r in run(entries, device, device_index, compute_type):
+        for r in run(entries, device, device_index, compute_type, model):
             n += 1
             row_base = [r.wav_path, r.source, r.index, r.detected_lang,
                         _f(r.wer), _f(r.avg_word_score)]
@@ -282,6 +283,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=0,
                         help='Max entries to check (0 = all)')
+    parser.add_argument('--model', type=str, default=None,
+                        help='WhisperX model name or path (default: config.WX_MODEL)')
     args = parser.parse_args()
     limit = args.limit or None
 
@@ -315,9 +318,9 @@ def main():
     log.info('GPUs detected: %d → %d shard(s)', n_gpus, world_size)
 
     if world_size > 1:
-        mp.spawn(_run_shard, args=(world_size, all_entries, base), nprocs=world_size, join=True)
+        mp.spawn(_run_shard, args=(world_size, all_entries, base, args.model), nprocs=world_size, join=True)
     else:
-        _run_shard(0, 1, all_entries, base)
+        _run_shard(0, 1, all_entries, base, args.model)
 
 
 # Example:              python -m ch_ds.wx
