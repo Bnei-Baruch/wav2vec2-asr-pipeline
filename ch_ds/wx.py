@@ -10,6 +10,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 import torch
+import torch.multiprocessing as mp
 try:
     from tqdm import tqdm
 except ImportError:
@@ -58,9 +59,10 @@ def _normalize(text: str) -> str:
     return ' '.join(text.split()).strip()
 
 
-def _resolve_device() -> tuple[str, str]:
-    device = config.WX_DEVICE or ('cuda' if torch.cuda.is_available() else 'cpu')
-    compute_type = config.WX_COMPUTE_TYPE if device == 'cuda' else 'int8'
+def _resolve_device(rank: int = 0) -> tuple[str, str]:
+    n = torch.cuda.device_count()
+    device = f'cuda:{rank}' if n > 0 else 'cpu'
+    compute_type = config.WX_COMPUTE_TYPE if device.startswith('cuda') else 'int8'
     return device, compute_type
 
 
@@ -177,39 +179,17 @@ def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[Wx
     return results
 
 
-def main():
-    data_dir = config.DATA_DIR
-    log.info('Starting WhisperX QC | data_dir=%s | limit=%s | log=%s',
-             data_dir, config.WX_LIMIT, config.LOG_PATH)
+def _run_shard(rank: int, world_size: int, all_entries: list, base: str) -> None:
+    device, compute_type = _resolve_device(rank)
+    entries = all_entries[rank::world_size]
+    suffix = f'_r{rank}' if world_size > 1 else ''
 
-    metadata_files = find_metadata_files(data_dir)
-    if not metadata_files:
-        log.error('No metadata.csv files found in %s', data_dir)
-        return
-
-    all_entries: list[MetadataEntry] = []
-    for csv_path in metadata_files:
-        all_entries.extend(parse_metadata(csv_path))
-
-    if not all_entries:
-        log.error('No entries found in %s', data_dir)
-        return
-
-    if config.WX_LIMIT and len(all_entries) > config.WX_LIMIT:
-        random.seed(42)
-        all_entries = random.sample(all_entries, config.WX_LIMIT)
-        log.info('Sampled %d entries (WX_LIMIT=%d)', len(all_entries), config.WX_LIMIT)
-
-    log.info('Processing %d entries', len(all_entries))
-    device, compute_type = _resolve_device()
-
-    base = config.WX_EXPORT_BASE
-    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
+    log.info('Rank %d/%d | device=%s | entries=%d', rank, world_size, device, len(entries))
 
     try:
-        fa = open(f'{base}_all.csv',     'w', newline='', encoding='utf-8')
-        fp = open(f'{base}_passed.csv',  'w', newline='', encoding='utf-8')
-        ff = open(f'{base}_flagged.csv', 'w', newline='', encoding='utf-8')
+        fa = open(f'{base}{suffix}_all.csv',     'w', newline='', encoding='utf-8')
+        fp = open(f'{base}{suffix}_passed.csv',  'w', newline='', encoding='utf-8')
+        ff = open(f'{base}{suffix}_flagged.csv', 'w', newline='', encoding='utf-8')
     except OSError as e:
         log.error('Cannot open output CSV files: %s', e)
         return
@@ -230,7 +210,7 @@ def main():
     samples_buf: dict[str, list] = {ft: [] for ft in config.WX_FLAG_ORDER}
 
     try:
-        for r in run(all_entries, device, compute_type):
+        for r in run(entries, device, compute_type):
             n += 1
             row_base = [r.wav_path, r.source, r.index, r.detected_lang,
                         _f(r.wer), _f(r.avg_word_score)]
@@ -253,10 +233,13 @@ def main():
     finally:
         fa.close(); fp.close(); ff.close()
 
+    if n == 0:
+        return
+
     log.info('')
-    log.info('=== WHISPERX QC REPORT ===')
+    log.info('=== WHISPERX QC REPORT (rank %d) ===', rank)
     log.info('Checked entries : %d', n)
-    log.info('Flagged entries : %d (%.1f%%)', n_flagged, 100 * n_flagged / n if n else 0)
+    log.info('Flagged entries : %d (%.1f%%)', n_flagged, 100 * n_flagged / n)
 
     if wer_scores:
         wer_scores.sort()
@@ -270,7 +253,7 @@ def main():
     log.info('')
     log.info('--- Flags breakdown ---')
     for flag, count in flag_counter.most_common():
-        log.info('  %-22s %6d  (%.2f%%)', flag, count, 100 * count / n if n else 0)
+        log.info('  %-22s %6d  (%.2f%%)', flag, count, 100 * count / n)
 
     for flag_type in config.WX_FLAG_ORDER:
         samples = samples_buf.get(flag_type, [])
@@ -280,7 +263,7 @@ def main():
         log.info('')
         log.info('--- %s (%d total, showing up to %d) ---', flag_type, total, config.MAX_PRINT)
         for r in samples:
-            rel = os.path.relpath(r.wav_path, data_dir)
+            rel = os.path.relpath(r.wav_path, config.DATA_DIR)
             wer_str = f'WER={r.wer:.2f}' if r.wer is not None else ''
             lang_str = f'lang={r.detected_lang}' if r.detected_lang else ''
             log.warning('[%s] %s  %s %s', flag_type, rel, lang_str, wer_str)
@@ -288,10 +271,56 @@ def main():
                 log.warning('  ref: %s', r.reference[:120])
                 log.warning('  hyp: %s', r.hypothesis[:120])
 
-    log.info('Saved: %s_{all,passed,flagged}.csv', base)
+    log.info('Saved: %s%s_{all,passed,flagged}.csv', base, suffix)
     log.info('Done.')
 
 
-# Example: python -m ch_ds.wx
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--limit', type=int, default=0,
+                        help='Max entries to check (0 = all)')
+    args = parser.parse_args()
+    limit = args.limit or None
+
+    data_dir = config.DATA_DIR
+    log.info('Starting WhisperX QC | data_dir=%s | limit=%s | log=%s',
+             data_dir, limit, config.LOG_PATH)
+
+    metadata_files = find_metadata_files(data_dir)
+    if not metadata_files:
+        log.error('No metadata.csv files found in %s', data_dir)
+        return
+
+    all_entries: list[MetadataEntry] = []
+    for csv_path in metadata_files:
+        all_entries.extend(parse_metadata(csv_path))
+
+    if not all_entries:
+        log.error('No entries found in %s', data_dir)
+        return
+
+    if limit and len(all_entries) > limit:
+        random.seed(42)
+        all_entries = random.sample(all_entries, limit)
+        log.info('Sampled %d entries (limit=%d)', len(all_entries), limit)
+
+    base = config.WX_EXPORT_BASE
+    os.makedirs(os.path.dirname(base) or '.', exist_ok=True)
+
+    n_gpus = torch.cuda.device_count()
+    world_size = max(n_gpus, 1)
+    log.info('GPUs detected: %d → %d shard(s)', n_gpus, world_size)
+
+    if world_size > 1:
+        mp.spawn(_run_shard, args=(world_size, all_entries, base), nprocs=world_size, join=True)
+    else:
+        _run_shard(0, 1, all_entries, base)
+
+
+# Example:              python -m ch_ds.wx
+# Example (500 clips):  python -m ch_ds.wx --limit 500
+# Example (all clips):  python -m ch_ds.wx --limit 0
+# Uses all available GPUs automatically; outputs wx_r0_*, wx_r1_*, ... when >1 GPU.
 if __name__ == '__main__':
     main()
