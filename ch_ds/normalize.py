@@ -31,6 +31,7 @@ _ASCII_GERSHAYIM = re.compile(
 _ASCII_GERSHAYIM_WORD = re.compile(r'[א-ת]+(?:\x22{1,2}[א-ת]+)+')
 # dash that is NOT at position 0 (mid-line dash, not a dialogue opener)
 _DASH_MID_LINE = re.compile(r'(?<= )-')
+_DOUBLE_QUOT   = re.compile(r'"{2,}')
 
 _FIX_ORDER: tuple[str, ...] = (
     'invisible',
@@ -41,6 +42,7 @@ _FIX_ORDER: tuple[str, ...] = (
     'punct_repeated',
     'space_before',
     'double_space',
+    'double_quot',
 )
 
 ALL_FIXES: frozenset[str] = frozenset({
@@ -52,6 +54,7 @@ ALL_FIXES: frozenset[str] = frozenset({
     'punct_repeated',
     'double_space',
     'space_before',
+    'double_quot',
 })
 
 
@@ -75,6 +78,8 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
         text = _SPACE_BEFORE_SUB.sub(r'\1', text)
     if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
         text = PUNCT_DOUBLE_SPACE.sub(' ', text)
+    if 'double_quot' in fixes and _DOUBLE_QUOT.search(text):
+        text = _DOUBLE_QUOT.sub('"', text)
     return text.strip()
 
 
