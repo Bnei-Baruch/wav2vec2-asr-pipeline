@@ -59,11 +59,12 @@ def _normalize(text: str) -> str:
     return ' '.join(text.split()).strip()
 
 
-def _resolve_device(rank: int = 0) -> tuple[str, str]:
+def _resolve_device(rank: int = 0) -> tuple[str, int, str]:
     n = torch.cuda.device_count()
-    device = f'cuda:{rank}' if n > 0 else 'cpu'
-    compute_type = config.WX_COMPUTE_TYPE if device.startswith('cuda') else 'int8'
-    return device, compute_type
+    device = 'cuda' if n > 0 else 'cpu'
+    device_index = rank if n > 0 else 0
+    compute_type = config.WX_COMPUTE_TYPE if device == 'cuda' else 'int8'
+    return device, device_index, compute_type
 
 
 @dataclass
@@ -88,7 +89,7 @@ def _compute_wer(reference: str, hypothesis: str) -> float:
     return jiwer_wer(reference, hypothesis)
 
 
-def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[WxResult]:
+def run(entries: list[MetadataEntry], device: str, device_index: int, compute_type: str) -> list[WxResult]:
     # pyannote VAD checkpoints contain omegaconf objects incompatible with weights_only=True
     import functools
     _orig_load = torch.load
@@ -100,11 +101,12 @@ def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[Wx
 
     import whisperx
 
-    log.info('Loading WhisperX model: %s  device=%s  compute_type=%s',
-             config.WX_MODEL, device, compute_type)
+    log.info('Loading WhisperX model: %s  device=%s  device_index=%d  compute_type=%s',
+             config.WX_MODEL, device, device_index, compute_type)
     model = whisperx.load_model(
         config.WX_MODEL,
         device,
+        device_index=device_index,
         compute_type=compute_type,
         language=config.WX_LANGUAGE,
     )
@@ -180,11 +182,11 @@ def run(entries: list[MetadataEntry], device: str, compute_type: str) -> list[Wx
 
 
 def _run_shard(rank: int, world_size: int, all_entries: list, base: str) -> None:
-    device, compute_type = _resolve_device(rank)
+    device, device_index, compute_type = _resolve_device(rank)
     entries = all_entries[rank::world_size]
     suffix = f'_r{rank}' if world_size > 1 else ''
 
-    log.info('Rank %d/%d | device=%s | entries=%d', rank, world_size, device, len(entries))
+    log.info('Rank %d/%d | device=%s:%d | entries=%d', rank, world_size, device, device_index, len(entries))
 
     try:
         fa = open(f'{base}{suffix}_all.csv',     'w', newline='', encoding='utf-8')
@@ -210,7 +212,7 @@ def _run_shard(rank: int, world_size: int, all_entries: list, base: str) -> None
     samples_buf: dict[str, list] = {ft: [] for ft in config.WX_FLAG_ORDER}
 
     try:
-        for r in run(entries, device, compute_type):
+        for r in run(entries, device, device_index, compute_type):
             n += 1
             row_base = [r.wav_path, r.source, r.index, r.detected_lang,
                         _f(r.wer), _f(r.avg_word_score)]
