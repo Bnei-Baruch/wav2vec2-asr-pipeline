@@ -1,12 +1,13 @@
 """
 Deletes WAV clips and removes their rows from metadata.csv files.
 
-Reads a _rejected.csv produced by all.py and filters by --flag substring.
+Reads a _rejected.csv produced by all.py.
+Skips entries whose ONLY rejection reason is audio:clipping.
 Without --apply, shows what would be deleted (dry run).
 
 Usage:
-    python -m ch_ds.clean results/all_rejected.csv --flag audio:clipping
-    python -m ch_ds.clean results/all_rejected.csv --flag audio:clipping --apply
+    python -m ch_ds.clean results/all_rejected.csv
+    python -m ch_ds.clean results/all_rejected.csv --apply
 """
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ import os
 from collections import defaultdict
 
 from . import config
+
+SKIP_IF_ONLY = 'audio:clipping'
 
 
 def _setup_logger() -> logging.Logger:
@@ -45,7 +48,7 @@ log = _setup_logger()
 
 
 def flag_summary(rejected_csv: str) -> None:
-    """Prints a count-per-flag breakdown of all entries in the rejected CSV."""
+    """Logs a count-per-flag breakdown; detail goes to log file (DEBUG), total to console (INFO)."""
     counts: dict[str, int] = defaultdict(int)
     try:
         with open(rejected_csv, encoding='utf-8-sig', newline='') as f:
@@ -72,18 +75,17 @@ def flag_summary(rejected_csv: str) -> None:
     log.info('')
 
 
-def load_rejected(rejected_csv: str, flag: str) -> dict[str, dict[int, str]]:
+def load_rejected(rejected_csv: str) -> dict[str, dict[int, str]]:
     """
-    Returns {source_metadata_path: {row_index: wav_path}} for entries
-    whose reasons contain the given flag substring.
+    Returns {source_metadata_path: {row_index: wav_path}}.
+    Skips entries whose ONLY reason is audio:clipping.
     """
     by_source: dict[str, dict[int, str]] = defaultdict(dict)
     try:
         with open(rejected_csv, encoding='utf-8-sig', newline='') as f:
             for row in csv.DictReader(f):
-                reasons_raw = row.get('reasons', '')
-                reasons = [r.strip() for r in reasons_raw.split('|') if r.strip()]
-                if not any(flag in r for r in reasons):
+                reasons = [r.strip() for r in row.get('reasons', '').split('|') if r.strip()]
+                if reasons == [SKIP_IF_ONLY]:
                     continue
                 source   = row['source']
                 index    = int(row['index'])
@@ -151,18 +153,13 @@ def _rewrite_metadata(source: str, indices_to_remove: set[int], dry_run: bool) -
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Delete rejected WAV clips and clean metadata, filtered by flag.'
+        description='Delete rejected WAV clips and clean metadata. Skips audio:clipping-only entries.'
     )
     parser.add_argument(
         'rejected_csv',
         nargs='?',
         default=f'{config.ALL_EXPORT_BASE}_rejected.csv',
         help='Path to _rejected.csv (default: %(default)s)',
-    )
-    parser.add_argument(
-        '--flag',
-        required=True,
-        help='Filter entries whose reasons contain this substring (e.g. "audio:clipping", "lang:", "txt:")',
     )
     parser.add_argument(
         '--apply',
@@ -174,24 +171,24 @@ def main():
     dry_run = not args.apply
 
     log.info('Rejected CSV : %s', args.rejected_csv)
-    log.info('Flag filter  : %s', args.flag)
+    log.info('Skip if only : %s', SKIP_IF_ONLY)
     log.info('Mode         : %s', 'APPLY' if args.apply else 'DRY RUN')
     log.info('')
     flag_summary(args.rejected_csv)
 
-    by_source = load_rejected(args.rejected_csv, args.flag)
+    by_source = load_rejected(args.rejected_csv)
     if not by_source:
-        log.info('No matching entries found.')
+        log.info('Nothing to clean.')
         return
 
     total_entries = sum(len(v) for v in by_source.values())
-    log.info('Matched %d entry/entries across %d metadata file(s)', total_entries, len(by_source))
+    log.info('Entries to delete: %d across %d metadata file(s)', total_entries, len(by_source))
     log.info('')
 
     for source, idx_wav in sorted(by_source.items()):
         log.info('  %s  →  %d row(s)', source, len(idx_wav))
         for idx in sorted(idx_wav):
-            log.info('    index=%-5d  %s', idx, idx_wav[idx])
+            log.debug('    index=%-5d  %s', idx, idx_wav[idx])
 
     log.info('')
 
@@ -216,6 +213,6 @@ def main():
     log.info('Done.')
 
 
-# Example: python -m ch_ds.clean results/all_rejected.csv --flag audio:clipping
+# Example: python -m ch_ds.clean results/all_rejected.csv --apply
 if __name__ == '__main__':
     main()
