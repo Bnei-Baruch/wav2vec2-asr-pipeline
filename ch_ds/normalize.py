@@ -58,7 +58,7 @@ ALL_FIXES: frozenset[str] = frozenset({
 })
 
 
-def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) -> str:
+def normalize_text(text: str, fixes: frozenset[str] = ALL_FIXES) -> str:
     if 'invisible' in fixes and PUNCT_INVISIBLE.search(text):
         text = PUNCT_INVISIBLE.sub('', text)
     if 'ascii_quot' in fixes and _ASCII_GERSHAYIM.search(text):
@@ -72,11 +72,11 @@ def normalize_text(text: str, apply: bool, fixes: frozenset[str] = ALL_FIXES) ->
             text = PUNCT_DIALOGUE_DASH.sub('', text)
         if _DASH_MID_LINE.search(text):
             text = _DASH_MID_LINE.sub('', text)
-    if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text) and not apply:
+    if 'punct_repeated' in fixes and PUNCT_REPEATED.search(text):
         text = PUNCT_REPEATED.sub(r'\1', text)
-    if 'space_before' in fixes and PUNCT_SPACE_BEFORE.search(text) and not apply:
+    if 'space_before' in fixes and PUNCT_SPACE_BEFORE.search(text):
         text = _SPACE_BEFORE_SUB.sub(r'\1', text)
-    if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text) and not apply:
+    if 'double_space' in fixes and PUNCT_DOUBLE_SPACE.search(text):
         text = PUNCT_DOUBLE_SPACE.sub(' ', text)
     if 'double_quot' in fixes and _DOUBLE_QUOT.search(text):
         text = _DOUBLE_QUOT.sub('"', text)
@@ -110,7 +110,7 @@ def _process_file(
     new_rows = []
     for i, row in enumerate(rows):
         orig = row.get('sentence', '')
-        norm = normalize_text(orig, apply, fixes)
+        norm = normalize_text(orig, fixes)
         new_rows.append({**row, 'sentence': norm})
         if norm != orig:
             changed.append((i, orig, norm))
@@ -119,7 +119,7 @@ def _process_file(
                 for fix_name in _FIX_ORDER:
                     if fix_name not in fixes:
                         continue
-                    after = normalize_text(current, apply, frozenset({fix_name}))
+                    after = normalize_text(current, frozenset({fix_name}))
                     if after != current:
                         fix_counts[fix_name] = fix_counts.get(fix_name, 0) + 1
                     current = after
