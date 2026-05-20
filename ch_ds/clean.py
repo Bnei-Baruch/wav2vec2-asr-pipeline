@@ -44,6 +44,33 @@ def _setup_logger() -> logging.Logger:
 log = _setup_logger()
 
 
+def flag_summary(rejected_csv: str) -> None:
+    """Prints a count-per-flag breakdown of all entries in the rejected CSV."""
+    counts: dict[str, int] = defaultdict(int)
+    try:
+        with open(rejected_csv, encoding='utf-8-sig', newline='') as f:
+            for row in csv.DictReader(f):
+                for r in row.get('reasons', '').split('|'):
+                    r = r.strip()
+                    if r:
+                        counts[r] += 1
+    except FileNotFoundError:
+        log.error('Rejected CSV not found: %s', rejected_csv)
+        return
+    except Exception as e:
+        log.error('Failed to read %s: %s', rejected_csv, e)
+        return
+
+    if not counts:
+        log.info('No rejected entries found.')
+        return
+
+    log.info('--- Rejection counts by flag ---')
+    for flag, n in sorted(counts.items(), key=lambda x: -x[1]):
+        log.info('  %-40s  %d', flag, n)
+    log.info('')
+
+
 def load_rejected(rejected_csv: str, flag: str) -> dict[str, dict[int, str]]:
     """
     Returns {source_metadata_path: {row_index: wav_path}} for entries
@@ -148,6 +175,8 @@ def main():
     log.info('Rejected CSV : %s', args.rejected_csv)
     log.info('Flag filter  : %s', args.flag)
     log.info('Mode         : %s', 'APPLY' if args.apply else 'DRY RUN')
+    log.info('')
+    flag_summary(args.rejected_csv)
 
     by_source = load_rejected(args.rejected_csv, args.flag)
     if not by_source:
