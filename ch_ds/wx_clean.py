@@ -99,6 +99,7 @@ def load_flagged(
     """
     by_source: dict[str, dict[int, str]] = defaultdict(dict)
     skipped_wer = 0
+    already_gone = 0
 
     for path in flagged_csvs:
         try:
@@ -119,15 +120,21 @@ def load_flagged(
                             skipped_wer += 1
                             continue
 
+                    wav_path = row['wav_path']
+                    if not os.path.exists(wav_path):
+                        already_gone += 1
+                        continue
+
                     source = row['source']
                     index = int(row['index'])
-                    wav_path = row['wav_path']
                     by_source[source][index] = wav_path
         except FileNotFoundError:
             log.error('Flagged CSV not found: %s', path)
         except Exception as e:
             log.error('Failed to read %s: %s', path, e)
 
+    if already_gone:
+        log.info('Skipped %d entries (WAV already deleted from a previous run)', already_gone)
     if skipped_wer:
         log.info('Skipped %d high_wer-only entries (WER < %.2f)', skipped_wer, min_wer)
 
