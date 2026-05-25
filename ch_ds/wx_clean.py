@@ -58,7 +58,8 @@ def _setup_logger() -> logging.Logger:
 log = _setup_logger()
 
 
-def flag_summary(flagged_csvs: list[str]) -> None:
+def flag_summary(flagged_csvs: list[str]) -> int:
+    """Logs a breakdown by flag type and returns the total number of flagged rows."""
     counts: Counter = Counter()
     total = 0
     for path in flagged_csvs:
@@ -78,8 +79,10 @@ def flag_summary(flagged_csvs: list[str]) -> None:
     log.info('Flagged entries total : %d', total)
     log.info('Flag breakdown:')
     for fl, n in counts.most_common():
-        log.info('  %-25s %d', fl, n)
+        pct = 100 * n / total if total else 0
+        log.info('  %-25s %6d  (%.1f%%)', fl, n, pct)
     log.info('')
+    return total
 
 
 def load_flagged(
@@ -184,7 +187,7 @@ def main() -> None:
     log.info('Mode            : %s', 'APPLY' if args.apply else 'DRY RUN')
     log.info('')
 
-    flag_summary(args.flagged_csv)
+    total_flagged = flag_summary(args.flagged_csv)
 
     by_source = load_flagged(args.flagged_csv, active_flags, args.min_wer)
     if not by_source:
@@ -192,7 +195,8 @@ def main() -> None:
         return
 
     total_entries = sum(len(v) for v in by_source.values())
-    log.info('Entries to delete : %d across %d metadata file(s)', total_entries, len(by_source))
+    pct_selected = 100 * total_entries / total_flagged if total_flagged else 0
+    log.info('Selected for deletion : %d  (%.1f%% of flagged)', total_entries, pct_selected)
     log.info('')
 
     for source, idx_wav in sorted(by_source.items()):
@@ -216,9 +220,15 @@ def main() -> None:
         total_removed += removed
         log.info('  %d WAV(s) deleted, %d metadata row(s) removed', len(index_to_wav), removed)
 
+    pct_of_flagged  = 100 * total_deleted / total_flagged  if total_flagged  else 0
+    pct_of_selected = 100 * total_deleted / total_entries if total_entries else 0
+
     log.info('')
     log.info('=== WX CLEAN REPORT ===')
-    log.info('WAV files deleted     : %d', total_deleted)
+    log.info('Flagged entries total : %d', total_flagged)
+    log.info('Selected for deletion : %d  (%.1f%% of flagged)', total_entries, pct_selected)
+    log.info('WAV files deleted     : %d  (%.1f%% of flagged / %.1f%% of selected)',
+             total_deleted, pct_of_flagged, pct_of_selected)
     log.info('Metadata rows removed : %d', total_removed)
     log.info('Done.')
 
