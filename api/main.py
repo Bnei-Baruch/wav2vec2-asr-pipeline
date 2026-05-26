@@ -15,6 +15,14 @@ from wisper.constants import LANGUAGE, TASK
 from wisper.inference import load_pipeline
 from api.config import MODELS, DEFAULT_MODEL, DEVICE
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("api.log", encoding="utf-8"),
+    ],
+)
 logger = logging.getLogger("api")
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
