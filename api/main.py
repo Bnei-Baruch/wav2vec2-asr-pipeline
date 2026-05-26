@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import tempfile
 import urllib.request
@@ -13,6 +14,8 @@ from pydub import AudioSegment
 from wisper.constants import LANGUAGE, TASK
 from wisper.inference import load_pipeline
 from api.config import MODELS, DEFAULT_MODEL, DEVICE
+
+logger = logging.getLogger("api")
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
@@ -57,26 +60,32 @@ async def speech_to_text(
     if not file and not url:
         raise HTTPException(status_code=400, detail="Provide file or url")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        if url:
-            ext = os.path.splitext(url.split("?")[0])[1].lower() or ".mp3"
-            src_path = os.path.join(tmpdir, f"input{ext}")
-            urllib.request.urlretrieve(url, src_path)
-        else:
-            ext = os.path.splitext(file.filename)[1].lower() or ".mp3"
-            src_path = os.path.join(tmpdir, f"input{ext}")
-            content = await file.read()
-            with open(src_path, "wb") as f:
-                f.write(content)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if url:
+                ext = os.path.splitext(url.split("?")[0])[1].lower() or ".mp3"
+                src_path = os.path.join(tmpdir, f"input{ext}")
+                urllib.request.urlretrieve(url, src_path)
+            else:
+                ext = os.path.splitext(file.filename)[1].lower() or ".mp3"
+                src_path = os.path.join(tmpdir, f"input{ext}")
+                content = await file.read()
+                with open(src_path, "wb") as f:
+                    f.write(content)
 
-        wav_path = os.path.join(tmpdir, "audio.wav")
-        audio = AudioSegment.from_file(src_path)
-        audio = audio.set_channels(1).set_frame_rate(16000)
-        audio.export(wav_path, format="wav")
+            wav_path = os.path.join(tmpdir, "audio.wav")
+            audio = AudioSegment.from_file(src_path)
+            audio = audio.set_channels(1).set_frame_rate(16000)
+            audio.export(wav_path, format="wav")
 
-        loop = asyncio.get_event_loop()
-        async with _locks[model]:
-            result = await loop.run_in_executor(None, _infer, MODELS[model], wav_path)
+            loop = asyncio.get_event_loop()
+            async with _locks[model]:
+                result = await loop.run_in_executor(None, _infer, MODELS[model], wav_path)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("STT failed: model=%s file=%s url=%s", model, file and file.filename, url)
+        raise HTTPException(status_code=500, detail="Internal transcription error")
 
     chunks = [
         {"start": ts[0], "end": ts[1], "text": chunk["text"].strip()}
