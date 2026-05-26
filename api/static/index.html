@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STT Compare</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f0f2f5; padding: 1.5rem; }
+    h1 { font-size: 1.3rem; margin-bottom: 1.2rem; color: #111; }
+
+    .form-card { background: #fff; border-radius: 8px; padding: 1.2rem 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 1.5rem; }
+    .input-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .input-group { display: flex; flex-direction: column; gap: .3rem; flex: 1; min-width: 200px; }
+    .input-group label { font-size: .8rem; color: #666; }
+    .input-group input[type=url] { padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .95rem; }
+    .divider { font-size: .85rem; color: #9ca3af; align-self: center; padding-bottom: .2rem; }
+    .file-label { display: inline-flex; align-items: center; gap: .4rem; padding: .48rem .9rem; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; font-size: .9rem; white-space: nowrap; }
+    .file-label input { display: none; }
+    button[type=submit] { padding: .52rem 1.4rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: .95rem; cursor: pointer; white-space: nowrap; }
+    button[type=submit]:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 800px) { .columns { grid-template-columns: 1fr; } }
+
+    .col { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); min-height: 120px; }
+    .col-inner { padding: 1rem; }
+    .col-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .8rem; }
+    .col-title { font-weight: 600; font-size: .95rem; }
+    .badge { font-size: .7rem; padding: .15rem .45rem; border-radius: 99px; font-weight: 500; }
+    .badge-wait  { background: #f3f4f6; color: #6b7280; }
+    .badge-run   { background: #fef3c7; color: #92400e; }
+    .badge-done  { background: #d1fae5; color: #065f46; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+
+    /* indeterminate progress bar */
+    .progress-bar { height: 3px; background: #e5e7eb; position: relative; overflow: hidden; }
+    .progress-bar::after {
+      content: "";
+      position: absolute; top: 0; height: 100%;
+      width: 40%; background: #f59e0b;
+      animation: indeterminate 1.2s ease-in-out infinite;
+    }
+    @keyframes indeterminate {
+      0%   { left: -40%; }
+      100% { left: 100%; }
+    }
+
+    .elapsed { font-size: .75rem; color: #9ca3af; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+    .full-text { font-size: .9rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: .8rem; color: #111; }
+    .chunks { display: flex; flex-direction: column; gap: .3rem; }
+    .chunk { display: flex; gap: .6rem; font-size: .82rem; }
+    .ts { color: #9ca3af; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    .error-msg { font-size: .85rem; color: #dc2626; }
+    .placeholder { color: #d1d5db; font-size: .85rem; text-align: center; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const MODELS = ["finetuned", "ivrit-ai", "base"];
+    function fmtAudio(s) {
+      if (s == null) return "--:--";
+      const m = Math.floor(s / 60);
+      const sec = (s % 60).toFixed(1).padStart(4, "0");
+      return `${m}:${sec}`;
+    }
+
+    function fmtElapsed(s) {
+      const m = String(Math.floor(s / 60)).padStart(2, "0");
+      const sec = String(s % 60).padStart(2, "0");
+      return `${m}:${sec}`;
+    }
+
+    const STATUS = { wait: "wait", run: "run", done: "done", error: "error" };
+    const BADGE = { wait: ["badge-wait","ожидание"], run: ["badge-run","обработка"], done: ["badge-done","готово"], error: ["badge-error","ошибка"] };
+
+    function initCols() {
+      return Object.fromEntries(MODELS.map(m => [m, { status: STATUS.wait, data: null, error: null }]));
+    }
+
+    function Column({ alias, state }) {
+      const [elapsed, setElapsed] = React.useState(0);
+      const isRunning = state.status === STATUS.run;
+
+      React.useEffect(() => {
+        if (!isRunning) { setElapsed(0); return; }
+        setElapsed(0);
+        const id = setInterval(() => setElapsed(s => s + 1), 1000);
+        return () => clearInterval(id);
+      }, [isRunning]);
+
+      const [cls, label] = BADGE[state.status];
+      return (
+        <div className="col">
+          {isRunning && <div className="progress-bar" />}
+          <div className="col-inner">
+            <div className="col-header">
+              <span className="col-title">{alias}</span>
+              <span className={`badge ${cls}`}>{label}</span>
+              {isRunning && <span className="elapsed">{fmtElapsed(elapsed)}</span>}
+            </div>
+            {state.status === STATUS.wait  && <div className="placeholder">—</div>}
+            {isRunning                      && <div className="placeholder">מעבד...</div>}
+            {state.status === STATUS.error  && <div className="error-msg">{state.error}</div>}
+            {state.status === STATUS.done && state.data && (
+              <>
+                <div className="full-text">{state.data.text}</div>
+                {state.data.chunks?.length > 0 && (
+                  <div className="chunks">
+                    {state.data.chunks.map((c, i) => (
+                      <div key={i} className="chunk">
+                        <span className="ts">{fmtAudio(c.start)} → {fmtAudio(c.end)}</span>
+                        <span>{c.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [audioUrl, setAudioUrl] = React.useState("");
+      const [file, setFile] = React.useState(null);
+      const [running, setRunning] = React.useState(false);
+      const [cols, setCols] = React.useState(initCols);
+
+      function setCol(alias, patch) {
+        setCols(prev => ({ ...prev, [alias]: { ...prev[alias], ...patch } }));
+      }
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        if (!file && !audioUrl.trim()) return;
+        setRunning(true);
+        setCols(initCols());
+
+        for (const alias of MODELS) {
+          setCol(alias, { status: STATUS.run });
+          try {
+            let res;
+            if (audioUrl.trim()) {
+              res = await fetch(`/stt?model=${alias}&url=${encodeURIComponent(audioUrl.trim())}`, { method: "POST" });
+            } else {
+              const fd = new FormData();
+              fd.append("file", file);
+              res = await fetch(`/stt?model=${alias}`, { method: "POST", body: fd });
+            }
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.detail || res.statusText);
+            }
+            const data = await res.json();
+            setCol(alias, { status: STATUS.done, data });
+          } catch (err) {
+            setCol(alias, { status: STATUS.error, error: err.message });
+          }
+        }
+        setRunning(false);
+      }
+
+      return (
+        <>
+          <h1>STT — השוואת מודלים</h1>
+          <div className="form-card">
+            <form onSubmit={handleSubmit}>
+              <div className="input-row">
+                <div className="input-group">
+                  <label>קישור MP3</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/audio.mp3"
+                    value={audioUrl}
+                    onChange={e => { setAudioUrl(e.target.value); if (e.target.value) setFile(null); }}
+                    disabled={running}
+                  />
+                </div>
+                <div className="divider">או</div>
+                <div className="input-group" style={{flexGrow:0}}>
+                  <label>קובץ</label>
+                  <label className="file-label">
+                    📎 {file ? file.name : "בחר קובץ"}
+                    <input type="file" accept="audio/*"
+                      onChange={e => { setFile(e.target.files[0]); setAudioUrl(""); }}
+                      disabled={running} />
+                  </label>
+                </div>
+                <button type="submit" disabled={running || (!file && !audioUrl.trim())}>
+                  {running ? "מעבד..." : "השווה"}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="columns">
+            {MODELS.map(alias => <Column key={alias} alias={alias} state={cols[alias]} />)}
+          </div>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
