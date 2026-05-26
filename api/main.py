@@ -90,7 +90,7 @@ async def speech_to_text(
                 None,
                 lambda: pipe(
                     wav_path,
-                    generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1},
+                    generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1, "do_sample": False},
                     return_timestamps=True,
                 ),
             )
