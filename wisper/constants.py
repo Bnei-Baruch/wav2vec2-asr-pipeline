@@ -9,7 +9,7 @@ MODEL_DIR = "./models/whisper-large-v3-he"
 TRAINING_ARGS = {
     "per_device_train_batch_size": 4,
     "gradient_accumulation_steps": 8,
-    "learning_rate": 1e-5,
+    "learning_rate": 1e-6,
     "warmup_steps": 500,
     "weight_decay": 0.01,
     "num_train_epochs": 3,
