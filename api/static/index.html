@@ -161,6 +161,7 @@
             setCol(alias, { status: STATUS.done, data });
           } catch (err) {
             setCol(alias, { status: STATUS.error, error: err.message });
+            break;
           }
         }
         setRunning(false);
