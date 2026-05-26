@@ -4,6 +4,7 @@ import tempfile
 import urllib.request
 from typing import Optional
 
+import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,35 +19,24 @@ _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app = FastAPI(title="STT API")
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
-_cache: dict[str, object] = {}
-_locks: dict[str, asyncio.Lock] = {}
+# one lock per model — serializes requests, prevents concurrent GPU use
+_locks: dict[str, asyncio.Lock] = {alias: asyncio.Lock() for alias in MODELS}
 
-_device = None
-
-
-def _get_device() -> str:
-    global _device
-    if _device is None:
-        if DEVICE != "auto":
-            _device = DEVICE
-        else:
-            import torch
-            _device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    return _device
+_device = DEVICE if DEVICE != "auto" else ("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def _get_lock(alias: str) -> asyncio.Lock:
-    if alias not in _locks:
-        _locks[alias] = asyncio.Lock()
-    return _locks[alias]
-
-
-def get_pipeline(alias: str):
-    if alias not in MODELS:
-        raise HTTPException(status_code=400, detail=f"Unknown model '{alias}'. Available: {list(MODELS)}")
-    if alias not in _cache:
-        _cache[alias] = load_pipeline(model_path=MODELS[alias], device=_get_device())
-    return _cache[alias]
+def _infer(model_path: str, wav_path: str) -> dict:
+    pipe = load_pipeline(model_path=model_path, device=_device)
+    try:
+        return pipe(
+            wav_path,
+            generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1, "do_sample": False},
+            return_timestamps=True,
+        )
+    finally:
+        del pipe
+        if "cuda" in _device:
+            torch.cuda.empty_cache()
 
 
 @app.get("/")
@@ -62,6 +52,8 @@ async def speech_to_text(
     model: str = DEFAULT_MODEL,
     url: Optional[str] = None,
 ):
+    if model not in MODELS:
+        raise HTTPException(status_code=400, detail=f"Unknown model '{model}'. Available: {list(MODELS)}")
     if not file and not url:
         raise HTTPException(status_code=400, detail="Provide file or url")
 
@@ -78,22 +70,13 @@ async def speech_to_text(
                 f.write(content)
 
         wav_path = os.path.join(tmpdir, "audio.wav")
-
         audio = AudioSegment.from_file(src_path)
         audio = audio.set_channels(1).set_frame_rate(16000)
         audio.export(wav_path, format="wav")
 
-        pipe = get_pipeline(model)
         loop = asyncio.get_event_loop()
-        async with _get_lock(model):
-            result = await loop.run_in_executor(
-                None,
-                lambda: pipe(
-                    wav_path,
-                    generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1, "do_sample": False},
-                    return_timestamps=True,
-                ),
-            )
+        async with _locks[model]:
+            result = await loop.run_in_executor(None, _infer, MODELS[model], wav_path)
 
     chunks = [
         {"start": ts[0], "end": ts[1], "text": chunk["text"].strip()}
