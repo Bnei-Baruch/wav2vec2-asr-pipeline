@@ -28,6 +28,12 @@ def load_pipeline(model_path: str = None, device: str = None):
     )
     model.to(device)
 
+    # Newer transformers may store eos_token_id as a list, which breaks
+    # SuppressTokensLogitsProcessor slice indexing. Normalize to int.
+    for cfg in (model.config, getattr(model, "generation_config", None)):
+        if cfg is not None and isinstance(getattr(cfg, "eos_token_id", None), list):
+            cfg.eos_token_id = cfg.eos_token_id[0]
+
     pipe = pipeline(
         "automatic-speech-recognition",
         model=model,
