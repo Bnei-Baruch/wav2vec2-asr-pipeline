@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import time
@@ -88,13 +89,13 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         return {"input_features": input_features, "labels": labels}
 
 
-def train():
+def train(model_id: str = BASE_MODEL_ID):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    logger.info("Load weights from: %s", BASE_MODEL_ID)
+    logger.info("Load weights from: %s", model_id)
     logger.info("Output dir: %s", MODEL_DIR)
 
     t0 = time.perf_counter()
-    processor = WhisperProcessor.from_pretrained(BASE_MODEL_ID)
+    processor = WhisperProcessor.from_pretrained(model_id)
     processor.tokenizer.clean_up_tokenization_spaces = False
     processor.tokenizer.set_prefix_tokens(language=LANGUAGE, task=TASK, predict_timestamps=False)
     logger.info("Processor loaded: %.1fs", time.perf_counter() - t0)
@@ -122,7 +123,7 @@ def train():
 
     t0 = time.perf_counter()
     model = WhisperForConditionalGeneration.from_pretrained(
-        BASE_MODEL_ID,
+        model_id,
         torch_dtype=torch.bfloat16,
     )
     model.generation_config.language = LANGUAGE
@@ -160,4 +161,7 @@ def train():
 
 ## Example: torchrun --nproc_per_node=2 -m wisper.train > logs/train_1.log 2> logs/train_2.log
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=BASE_MODEL_ID)
+    args = parser.parse_args()
+    train(model_id=args.model)
