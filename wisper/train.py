@@ -131,7 +131,6 @@ def train(model_id: str = BASE_MODEL_ID):
     model.generation_config.forced_decoder_ids = processor.get_decoder_prompt_ids(
         language=LANGUAGE, task=TASK
     )
-    model.freeze_encoder()
     logger.info("Model loaded: %.1fs", time.perf_counter() - t0)
 
     total = sum(p.numel() for p in model.parameters())
@@ -151,7 +150,7 @@ def train(model_id: str = BASE_MODEL_ID):
     )
 
     logger.info("Starting training...")
-    trainer.train(resume_from_checkpoint=False)
+    trainer.train(resume_from_checkpoint=True)
 
     logger.info("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
