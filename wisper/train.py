@@ -150,7 +150,7 @@ def train(model_id: str = BASE_MODEL_ID):
     )
 
     logger.info("Starting training...")
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train(resume_from_checkpoint=False)
 
     logger.info("Saving final model...")
     trainer.save_model(os.path.join(MODEL_DIR, "final"))
