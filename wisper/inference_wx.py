@@ -96,6 +96,18 @@ def _ensure_ct2(
 
     try:
         convert_to_ct2(model_path=src, output_dir=out_dir, quantization=quantization)
+        # The CT2 converter does NOT emit preprocessor_config.json, from which
+        # faster-whisper reads the mel-bin count (feature_size). Without it, it
+        # defaults to 80 mels, but large-v3 needs 128 -> shape mismatch at encode.
+        # Save the processor (tokenizer + feature extractor) into the CT2 dir.
+        from transformers import WhisperProcessor, WhisperFeatureExtractor
+
+        processor_src = base_model if staging else model_path
+        WhisperProcessor.from_pretrained(processor_src).save_pretrained(out_dir)
+        # Some transformers versions only write processor_config.json via the
+        # processor; faster-whisper reads feature_size from preprocessor_config.json
+        # specifically, so write that explicitly.
+        WhisperFeatureExtractor.from_pretrained(processor_src).save_pretrained(out_dir)
     finally:
         if staging and os.path.isdir(staging):
             shutil.rmtree(staging, ignore_errors=True)
