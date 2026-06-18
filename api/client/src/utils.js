@@ -1,22 +1,27 @@
-const MODELS = ["whisper-large-v3-he-lr-1e5", "ivrit-ai", "whisper-v3-audiofolder"];
+export const MODELS = ["whisper-large-v3-he-lr-1e5", "ivrit-ai", "whisper-v3-audiofolder"];
 
-function fmtAudio(s) {
+export function fmtAudio(s) {
   if (s == null) return "--:--";
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(1).padStart(4, "0");
   return `${m}:${sec}`;
 }
 
-function fmtElapsed(s) {
+export function fmtElapsed(s) {
   const m = String(Math.floor(s / 60)).padStart(2, "0");
   const sec = String(s % 60).padStart(2, "0");
   return `${m}:${sec}`;
 }
 
-const STATUS = { wait: "wait", run: "run", done: "done", error: "error" };
-const BADGE = { wait: ["badge-wait","ожидание"], run: ["badge-run","обработка"], done: ["badge-done","готово"], error: ["badge-error","ошибка"] };
+export const STATUS = { wait: "wait", run: "run", done: "done", error: "error" };
+export const BADGE = {
+  wait: ["badge-wait", "ожидание"],
+  run: ["badge-run", "обработка"],
+  done: ["badge-done", "готово"],
+  error: ["badge-error", "ошибка"],
+};
 
-function initCols() {
+export function initCols() {
   return Object.fromEntries(MODELS.map(m => [m, { status: STATUS.wait, data: null, error: null }]));
 }
 
@@ -29,7 +34,7 @@ function vttTime(s) {
 }
 
 // Build a WebVTT document from the API's chunks ([{start, end, text}]).
-function chunksToVtt(chunks) {
+export function chunksToVtt(chunks) {
   const cues = (chunks || [])
     .filter(c => c.start != null && c.end != null)
     .map(c => `${vttTime(c.start)} --> ${vttTime(c.end)}\n${c.text}`);

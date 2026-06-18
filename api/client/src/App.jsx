@@ -1,4 +1,9 @@
-function App() {
+import React from "react";
+import { MODELS, STATUS, initCols } from "./utils.js";
+import Column from "./Column.jsx";
+import Player from "./Player.jsx";
+
+export default function App() {
   const [audioUrl, setAudioUrl] = React.useState("");
   const [file, setFile] = React.useState(null);
   const [running, setRunning] = React.useState(false);
@@ -91,5 +96,3 @@ function App() {
     </>
   );
 }
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);

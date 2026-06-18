@@ -1,4 +1,7 @@
-function Column({ alias, state }) {
+import React from "react";
+import { STATUS, BADGE, fmtElapsed, fmtAudio } from "./utils.js";
+
+export default function Column({ alias, state }) {
   const [elapsed, setElapsed] = React.useState(0);
   const isRunning = state.status === STATUS.run;
 

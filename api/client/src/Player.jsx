@@ -1,4 +1,7 @@
-function Player({ src, cols }) {
+import React from "react";
+import { MODELS, STATUS, chunksToVtt } from "./utils.js";
+
+export default function Player({ src, cols }) {
   const [videoUrl, setVideoUrl] = React.useState(src || "");
   const [selected, setSelected] = React.useState("");
 
