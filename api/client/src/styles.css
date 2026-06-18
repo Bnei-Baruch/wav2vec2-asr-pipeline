@@ -19,7 +19,12 @@ button[type=submit]:disabled { background: #93c5fd; cursor: not-allowed; }
 .player-url { flex: 1; min-width: 200px; padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .95rem; }
 .player-controls select { padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; background: #fff; cursor: pointer; }
 
-.columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.layout { display: grid; grid-template-columns: 30% 1fr; gap: 1rem; align-items: start; }
+.layout-left { position: sticky; top: 1.5rem; }
+.layout-right { overflow-y: auto; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .layout-left { position: static; } }
+
+.columns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 @media (max-width: 800px) { .columns { grid-template-columns: 1fr; } }
 
 .col { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.1); min-height: 120px; }

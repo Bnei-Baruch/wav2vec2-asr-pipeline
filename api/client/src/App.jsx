@@ -88,10 +88,15 @@ export default function App() {
         </form>
       </div>
 
-      <Player src={mediaSrc} cols={cols} />
-
-      <div className="columns">
-        {MODELS.map(alias => <Column key={alias} alias={alias} state={cols[alias]} />)}
+      <div className="layout">
+        <div className="layout-left">
+          <Player src={mediaSrc} cols={cols} />
+        </div>
+        <div className="layout-right">
+          <div className="columns">
+            {MODELS.map(alias => <Column key={alias} alias={alias} state={cols[alias]} />)}
+          </div>
+        </div>
       </div>
     </>
   );
