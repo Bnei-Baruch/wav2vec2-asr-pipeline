@@ -11,9 +11,35 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" src="/static/utils.js"></script>
-  <script type="text/babel" src="/static/Column.jsx"></script>
-  <script type="text/babel" src="/static/Player.jsx"></script>
-  <script type="text/babel" src="/static/app.jsx"></script>
+  <script>
+    // Load the JSX sources in order, compile them together as ONE program so
+    // they share scope (MODELS, Column, Player, App), then run.
+    (async () => {
+      const files = [
+        "/static/utils.js",
+        "/static/Column.jsx",
+        "/static/Player.jsx",
+        "/static/app.jsx",
+      ];
+      try {
+        const sources = await Promise.all(
+          files.map(f => fetch(f).then(r => {
+            if (!r.ok) throw new Error(`${f}: ${r.status}`);
+            return r.text();
+          }))
+        );
+        const { code } = Babel.transform(sources.join("\n;\n"), {
+          presets: ["react"],
+          filename: "app.jsx",
+        });
+        const script = document.createElement("script");
+        script.textContent = code;
+        document.body.appendChild(script);
+      } catch (err) {
+        console.error("Failed to load app:", err);
+        document.getElementById("root").textContent = "Failed to load app: " + err.message;
+      }
+    })();
+  </script>
 </body>
 </html>
