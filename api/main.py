@@ -11,9 +11,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydub import AudioSegment
 
-from wisper.constants import LANGUAGE, TASK
-from wisper.inference import load_pipeline
-from api.config import MODELS, DEFAULT_MODEL, DEVICE
+from wisper.inference_wx import transcribe as wx_transcribe
+from api.config import (
+    MODELS,
+    DEFAULT_MODEL,
+    DEVICE,
+    CT2_CACHE_DIR,
+    CT2_QUANTIZATION,
+    ALIGN_MODEL,
+    WHISPERX_BATCH_SIZE,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,18 +43,34 @@ _locks: dict[str, asyncio.Lock] = {alias: asyncio.Lock() for alias in MODELS}
 _device = DEVICE if DEVICE != "auto" else ("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+def _fmt_srt_time(seconds: float) -> str:
+    ms = int(round(seconds * 1000))
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _build_srt(chunks: list[dict]) -> str:
+    lines = []
+    for i, c in enumerate(chunks, start=1):
+        lines.append(str(i))
+        lines.append(f"{_fmt_srt_time(c['start'])} --> {_fmt_srt_time(c['end'])}")
+        lines.append(c["text"])
+        lines.append("")
+    return "\n".join(lines)
+
+
 def _infer(model_path: str, wav_path: str) -> dict:
-    pipe = load_pipeline(model_path=model_path, device=_device)
-    try:
-        return pipe(
-            wav_path,
-            generate_kwargs={"language": LANGUAGE, "task": TASK, "num_beams": 1, "do_sample": False},
-            return_timestamps=True,
-        )
-    finally:
-        del pipe
-        if "cuda" in _device:
-            torch.cuda.empty_cache()
+    return wx_transcribe(
+        wav_path,
+        model_path,
+        _device,
+        ct2_cache_dir=CT2_CACHE_DIR,
+        align_model=ALIGN_MODEL,
+        batch_size=WHISPERX_BATCH_SIZE,
+        quantization=CT2_QUANTIZATION,
+    )
 
 
 @app.get("/")
@@ -56,7 +79,7 @@ def index():
 
 
 # POST /stt?model=finetuned|ivrit-ai|base  (file upload or url=...)
-# Response: {"text": "...", "chunks": [{"start": 0.0, "end": 3.5, "text": "..."}]}
+# Response: {"text": "...", "chunks": [{"start": 0.0, "end": 3.5, "text": "..."}], "srt": "..."}
 @app.post("/stt")
 async def speech_to_text(
     file: Optional[UploadFile] = File(default=None),
@@ -95,10 +118,19 @@ async def speech_to_text(
         logger.exception("STT failed: model=%s file=%s url=%s", model, file and file.filename, url)
         raise HTTPException(status_code=500, detail="Internal transcription error")
 
+    # WhisperX returns chunks already shaped as {start, end, text, words}.
     chunks = [
-        {"start": ts[0], "end": ts[1], "text": chunk["text"].strip()}
-        for chunk in result.get("chunks", [])
-        if (ts := chunk.get("timestamp", (0.0, 0.0)))
+        {
+            "start": c.get("start") or 0.0,
+            "end": c.get("end") or 0.0,
+            "text": (c.get("text") or "").strip(),
+            "words": c.get("words", []),
+        }
+        for c in result.get("chunks", [])
     ]
 
-    return JSONResponse({"text": result.get("text", "").strip(), "chunks": chunks})
+    return JSONResponse({
+        "text": result.get("text", "").strip(),
+        "chunks": chunks,
+        "srt": _build_srt(chunks),
+    })
