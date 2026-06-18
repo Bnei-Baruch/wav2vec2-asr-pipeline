@@ -13,6 +13,9 @@ MODELS: dict[str, str] = {
 # HF checkpoints are converted to CTranslate2 on first use and cached here.
 CT2_CACHE_DIR = "./models/_ct2_cache"
 CT2_QUANTIZATION = "float16"  # float16 | float32 | int8 | int8_float16
+# Source of tokenizer/feature-extractor when a local checkpoint omits them
+# (raw Trainer checkpoints often do). These fine-tunes share the base's tokenizer.
+BASE_MODEL = "ivrit-ai/whisper-large-v3"
 # wav2vec2 model used for word-level forced alignment (Hebrew).
 ALIGN_MODEL = "imvladikon/wav2vec2-xls-r-300m-hebrew"
 WHISPERX_BATCH_SIZE = 8

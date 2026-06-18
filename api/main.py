@@ -20,6 +20,7 @@ from api.config import (
     CT2_QUANTIZATION,
     ALIGN_MODEL,
     WHISPERX_BATCH_SIZE,
+    BASE_MODEL,
 )
 
 logging.basicConfig(
@@ -70,6 +71,7 @@ def _infer(model_path: str, wav_path: str) -> dict:
         align_model=ALIGN_MODEL,
         batch_size=WHISPERX_BATCH_SIZE,
         quantization=CT2_QUANTIZATION,
+        base_model=BASE_MODEL,
     )
 
 
