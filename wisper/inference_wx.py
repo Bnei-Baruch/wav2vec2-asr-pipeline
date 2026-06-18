@@ -9,7 +9,22 @@ import os
 import shutil
 
 import torch
-import whisperx
+
+# torch>=2.6 defaults torch.load to weights_only=True, which rejects the omegaconf
+# objects inside WhisperX's Pyannote VAD checkpoint (UnpicklingError). These models
+# come from HuggingFace and are trusted, so restore the legacy full-pickle load.
+_orig_torch_load = torch.load
+
+
+def _torch_load_compat(*args, **kwargs):
+    # Force off even when callers (e.g. lightning_fabric) pass weights_only=True.
+    kwargs["weights_only"] = False
+    return _orig_torch_load(*args, **kwargs)
+
+
+torch.load = _torch_load_compat
+
+import whisperx  # noqa: E402  (import after the torch.load patch)
 
 from .constants import LANGUAGE
 from .convert_ct2 import convert as convert_to_ct2
