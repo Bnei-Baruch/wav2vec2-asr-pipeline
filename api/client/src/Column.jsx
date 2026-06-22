@@ -27,7 +27,6 @@ export default function Column({ alias, state }) {
         {state.status === STATUS.error  && <div className="error-msg">{state.error}</div>}
         {state.status === STATUS.done && state.data && (
           <>
-            <div className="full-text">{state.data.text}</div>
             {state.data.chunks?.length > 0 && (
               <div className="chunks">
                 {state.data.chunks.map((c, i) => (

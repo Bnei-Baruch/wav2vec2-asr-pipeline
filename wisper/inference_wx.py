@@ -122,9 +122,10 @@ def _split_device(device: str):
     return "cpu", 0
 
 
-def _free(*objs, cuda: bool):
-    for obj in objs:
-        del obj
+def _cuda_cleanup(cuda: bool):
+    """Collect garbage and release cached CUDA memory. The caller must drop its
+    own references (del) BEFORE calling this — passing an object here wouldn't
+    free it, since that only removes a local reference."""
     gc.collect()
     if cuda:
         torch.cuda.empty_cache()
@@ -162,7 +163,8 @@ def transcribe(
     try:
         result = model.transcribe(audio, batch_size=batch_size, language=LANGUAGE)
     finally:
-        _free(model, cuda=(dev == "cuda"))
+        del model
+        _cuda_cleanup(dev == "cuda")
 
     segments = result.get("segments", [])
 
@@ -178,7 +180,8 @@ def transcribe(
             )
             segments = aligned.get("segments", segments)
         finally:
-            _free(align_obj, cuda=(dev == "cuda"))
+            del align_obj, metadata
+            _cuda_cleanup(dev == "cuda")
 
     chunks = []
     for seg in segments:

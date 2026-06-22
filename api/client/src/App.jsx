@@ -2,6 +2,7 @@ import React from "react";
 import { MODELS, STATUS, initCols } from "./utils.js";
 import Column from "./Column.jsx";
 import Player from "./Player.jsx";
+import Check from "./Check.jsx";
 
 export default function App() {
   const [audioUrl, setAudioUrl] = React.useState("");
@@ -91,6 +92,7 @@ export default function App() {
       <div className="layout">
         <div className="layout-left">
           <Player src={mediaSrc} cols={cols} />
+          <Check cols={cols} />
         </div>
         <div className="layout-right">
           <div className="columns">

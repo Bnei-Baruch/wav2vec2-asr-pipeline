@@ -15,6 +15,7 @@ export default defineConfig({
     // `npm run dev` -> proxy API calls to the FastAPI backend.
     proxy: {
       "/stt": "http://localhost:8000",
+      "/check": "http://localhost:8000",
     },
   },
 });

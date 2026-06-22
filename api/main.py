@@ -9,8 +9,10 @@ import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from pydub import AudioSegment
 
+from api.claude_check import review_transcription
 from wisper.inference_wx import transcribe as wx_transcribe
 from api.config import (
     MODELS,
@@ -136,3 +138,23 @@ async def speech_to_text(
         "chunks": chunks,
         "srt": _build_srt(chunks),
     })
+
+
+class CheckRequest(BaseModel):
+    text: str
+
+
+# POST /check  body: {"text": "<asr transcription>"}
+# Uses the Claude API to review the ASR text for likely recognition errors.
+# Response: {"score": 0-100, "summary": "...", "issues": [...], "corrected_text": "...", "model": "..."}
+@app.post("/check")
+async def check(req: CheckRequest):
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="Provide text")
+    try:
+        return JSONResponse(await review_transcription(req.text))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Claude review failed")
+        raise HTTPException(status_code=502, detail="Claude review failed")

@@ -50,6 +50,32 @@ button[type=submit]:disabled { background: #93c5fd; cursor: not-allowed; }
   100% { left: 100%; }
 }
 
+/* Claude check block under the player */
+.check-card { background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.1); margin-bottom: 1.5rem; }
+.check-controls { display: flex; gap: .6rem; flex-wrap: wrap; }
+.check-controls select { flex: 1; min-width: 140px; padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; background: #fff; cursor: pointer; }
+.check-btn { padding: .52rem 1.2rem; background: #7c3aed; color: #fff; border: none; border-radius: 6px; font-size: .9rem; cursor: pointer; white-space: nowrap; }
+.check-btn:disabled { background: #c4b5fd; cursor: not-allowed; }
+
+.check-result { margin-top: 1rem; }
+.check-score { display: flex; align-items: baseline; gap: .15rem; }
+.check-score-num { font-size: 1.8rem; font-weight: 700; color: #7c3aed; font-variant-numeric: tabular-nums; }
+.check-score-max { font-size: .85rem; color: #9ca3af; }
+.check-summary { font-size: .85rem; line-height: 1.5; color: #374151; margin: .4rem 0 .8rem; }
+.check-clean { font-size: .85rem; color: #065f46; margin: .4rem 0; }
+
+.check-issues { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+.check-issue { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; font-size: .82rem; padding: .5rem .6rem; background: #faf5ff; border: 1px solid #ede9fe; border-radius: 6px; }
+.issue-type { font-size: .68rem; padding: .12rem .4rem; border-radius: 99px; background: #ede9fe; color: #6d28d9; font-weight: 500; }
+.issue-span { text-decoration: line-through; color: #b91c1c; }
+.issue-arrow { color: #9ca3af; }
+.issue-fix { color: #065f46; font-weight: 600; }
+.issue-why { flex-basis: 100%; font-size: .76rem; color: #6b7280; line-height: 1.4; }
+
+.check-corrected { margin-top: .9rem; }
+.check-corrected label { display: block; font-size: .75rem; color: #666; margin-bottom: .25rem; }
+.check-corrected p { font-size: .88rem; line-height: 1.6; color: #111; white-space: pre-wrap; }
+
 .elapsed { font-size: .75rem; color: #9ca3af; margin-inline-start: auto; font-variant-numeric: tabular-nums; }
 .full-text { font-size: .9rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: .8rem; color: #111; }
 .chunks { display: flex; flex-direction: column; gap: .3rem; }
