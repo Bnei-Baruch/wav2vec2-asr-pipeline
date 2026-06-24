@@ -1,4 +1,4 @@
-export const MODELS = ["whisper-large-v3-he-lr-1e5", "whisper-v3-audiofolder"];
+export const MODELS = ["whisper-v3-audiofolder"];
 
 export function fmtAudio(s) {
   if (s == null) return "--:--";

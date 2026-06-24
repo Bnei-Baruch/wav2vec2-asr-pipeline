@@ -95,7 +95,7 @@ export default function App() {
           <Check cols={cols} />
         </div>
         <div className="layout-right">
-          <div className="columns">
+          <div className="columns" style={{ gridTemplateColumns: `repeat(${MODELS.length}, 1fr)` }}>
             {MODELS.map(alias => <Column key={alias} alias={alias} state={cols[alias]} />)}
           </div>
         </div>

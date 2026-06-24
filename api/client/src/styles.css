@@ -19,7 +19,7 @@ button[type=submit]:disabled { background: #93c5fd; cursor: not-allowed; }
 .player-url { flex: 1; min-width: 200px; padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .95rem; }
 .player-controls select { padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; background: #fff; cursor: pointer; }
 
-.layout { display: grid; grid-template-columns: 30% 1fr; gap: 1rem; align-items: start; }
+.layout { display: grid; grid-template-columns: 40% 1fr; gap: 1rem; align-items: start; }
 .layout-left { position: sticky; top: 1.5rem; }
 .layout-right { overflow-y: auto; }
 @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .layout-left { position: static; } }
