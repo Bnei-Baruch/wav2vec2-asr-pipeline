@@ -23,6 +23,7 @@ from api.config import (
     ALIGN_MODEL,
     WHISPERX_BATCH_SIZE,
     BASE_MODEL,
+    HOTWORDS,
 )
 
 logging.basicConfig(
@@ -64,7 +65,7 @@ def _build_srt(chunks: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _infer(model_path: str, wav_path: str) -> dict:
+def _infer(model_path: str, wav_path: str, hotwords: Optional[str] = None) -> dict:
     return wx_transcribe(
         wav_path,
         model_path,
@@ -74,6 +75,7 @@ def _infer(model_path: str, wav_path: str) -> dict:
         batch_size=WHISPERX_BATCH_SIZE,
         quantization=CT2_QUANTIZATION,
         base_model=BASE_MODEL,
+        hotwords=hotwords,
     )
 
 
@@ -89,9 +91,13 @@ async def speech_to_text(
     file: Optional[UploadFile] = File(default=None),
     model: str = DEFAULT_MODEL,
     url: Optional[str] = None,
+    hotwords: Optional[str] = None,
 ):
     if model not in MODELS:
         raise HTTPException(status_code=400, detail=f"Unknown model '{model}'. Available: {list(MODELS)}")
+    # Default to the domain-term glossary; pass ?hotwords=... to override,
+    # or ?hotwords= (empty) to disable biasing for this request.
+    hot = hotwords if hotwords is not None else HOTWORDS
     if not file and not url:
         raise HTTPException(status_code=400, detail="Provide file or url")
 
@@ -115,7 +121,7 @@ async def speech_to_text(
 
             loop = asyncio.get_event_loop()
             async with _locks[model]:
-                result = await loop.run_in_executor(None, _infer, MODELS[model], wav_path)
+                result = await loop.run_in_executor(None, _infer, MODELS[model], wav_path, hot)
     except HTTPException:
         raise
     except Exception:

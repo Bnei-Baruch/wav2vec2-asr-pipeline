@@ -152,21 +152,34 @@ def transcribe(
     ct2_path = _ensure_ct2(model_path, ct2_cache_dir, quantization, base_model=base_model)
     audio = whisperx.load_audio(audio_path)
 
-    # 1. Transcription (faster-whisper / CT2 backend with VAD chunking).
-    model = whisperx.load_model(
-        ct2_path,
-        device=dev,
-        device_index=dev_index,
-        compute_type=compute_type,
-        language=LANGUAGE,
+    # 1. Transcription — sequential faster-whisper (same CT2 backend) instead of
+    # whisperx's batched pipeline, so that:
+    #   - condition_on_previous_text carries the previous window's text, but weakly
+    #     (prompt_reset_on_temperature=0.2 drops it on the slightest difficulty);
+    #   - repetition / hallucination guards keep long-form decoding stable;
+    #   - peak VRAM is lower (one window at a time) — safer on the 8 GB GPU.
+    from faster_whisper import WhisperModel
+
+    model = WhisperModel(
+        ct2_path, device=dev, device_index=dev_index, compute_type=compute_type
     )
     try:
-        result = model.transcribe(audio, batch_size=batch_size, language=LANGUAGE)
+        seg_gen, _info = model.transcribe(
+            audio,
+            language=LANGUAGE,
+            condition_on_previous_text=True,
+            prompt_reset_on_temperature=0.2,       # weaken prev-context influence
+            no_repeat_ngram_size=3,                # block repetition loops
+            repetition_penalty=1.1,                # discourage repeats
+            hallucination_silence_threshold=2.0,   # skip long silences (end hallucinations)
+            vad_filter=True,
+        )
+        segments = [
+            {"start": s.start, "end": s.end, "text": s.text} for s in seg_gen
+        ]
     finally:
         del model
         _cuda_cleanup(dev == "cuda")
-
-    segments = result.get("segments", [])
 
     # 2. Forced alignment for accurate word-level timestamps.
     if segments:

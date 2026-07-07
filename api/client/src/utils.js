@@ -1,4 +1,4 @@
-export const MODELS = ["whisper-v3-audiofolder"];
+export const MODELS = ["whisper-prev", "whisper-noprev"];
 
 export function fmtAudio(s) {
   if (s == null) return "--:--";
