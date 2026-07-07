@@ -141,6 +141,7 @@ def transcribe(
     batch_size: int = 8,
     quantization: str = "float16",
     base_model: str = None,
+    hotwords: str = None,
 ) -> dict:
     """Transcribe + force-align an audio file.
 
@@ -153,11 +154,15 @@ def transcribe(
     audio = whisperx.load_audio(audio_path)
 
     # 1. Transcription — sequential faster-whisper (same CT2 backend) instead of
-    # whisperx's batched pipeline, so that:
-    #   - condition_on_previous_text carries the previous window's text, but weakly
-    #     (prompt_reset_on_temperature=0.2 drops it on the slightest difficulty);
-    #   - repetition / hallucination guards keep long-form decoding stable;
-    #   - peak VRAM is lower (one window at a time) — safer on the 8 GB GPU.
+    # whisperx's batched pipeline (biasing/context options are honored here).
+    #
+    # hotwords vs prev-context: faster-whisper allots up to ~223 prompt tokens to
+    # hotwords AND up to ~223 to the previous window's text; together they can
+    # exceed the 448-token decoder budget ("maximum decoding length must be > 0").
+    # Our full glossary alone is ~370 tokens, so when hotwords are set we disable
+    # condition_on_previous_text — glossary biasing applies to EVERY window and
+    # the prompt always fits. Without hotwords, prev-context is carried (weakly:
+    # prompt_reset_on_temperature=0.2 drops it on the slightest difficulty).
     from faster_whisper import WhisperModel
 
     model = WhisperModel(
@@ -167,11 +172,11 @@ def transcribe(
         seg_gen, _info = model.transcribe(
             audio,
             language=LANGUAGE,
-            condition_on_previous_text=True,
-            prompt_reset_on_temperature=0.2,       # weaken prev-context influence
-            no_repeat_ngram_size=3,                # block repetition loops
-            repetition_penalty=1.1,                # discourage repeats
-            hallucination_silence_threshold=2.0,   # skip long silences (end hallucinations)
+            hotwords=hotwords or None,
+            condition_on_previous_text=not hotwords,
+            prompt_reset_on_temperature=0.2,   # weaken prev-context influence
+            no_repeat_ngram_size=3,            # block repetition loops
+            repetition_penalty=1.1,            # discourage repeats
             vad_filter=True,
         )
         segments = [

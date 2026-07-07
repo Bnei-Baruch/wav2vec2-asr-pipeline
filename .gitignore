@@ -16,5 +16,6 @@ audio.srt
 **/*.log
 ch_ds.log
 models*/
+api/static/assets/
 *.srt
 *.mp3
