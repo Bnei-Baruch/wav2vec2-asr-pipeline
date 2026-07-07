@@ -173,11 +173,19 @@ def transcribe(
             audio,
             language=LANGUAGE,
             hotwords=hotwords or None,
-            condition_on_previous_text=not hotwords,
+            condition_on_previous_text= True,
             prompt_reset_on_temperature=0.2,   # weaken prev-context influence
-            no_repeat_ngram_size=3,            # block repetition loops
-            repetition_penalty=1.1,            # discourage repeats
+            repetition_penalty=1.1,            # mild; no_repeat_ngram_size would
+                                               # mangle legitimately repeated phrases
             vad_filter=True,
+            # Softened VAD: defaults (threshold=0.5, pad=400ms) clipped quiet
+            # speech and word edges. Lower threshold hears soft remarks; larger
+            # pad protects phrase boundaries; longer min_silence splits less.
+            vad_parameters={
+                "threshold": 0.3,
+                "speech_pad_ms": 800,
+                "min_silence_duration_ms": 3000,
+            },
         )
         segments = [
             {"start": s.start, "end": s.end, "text": s.text} for s in seg_gen
